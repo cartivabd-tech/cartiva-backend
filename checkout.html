@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cartiva - Checkout</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="toast" id="toast"></div>
+
+  <script>
+    (function(){
+      try{
+        const LOGO_KEY = 'cartiva_logo_url_v1';
+        const WA_ICON_KEY = 'cartiva_whatsapp_icon_v1';
+        const FB_ICON_KEY = 'cartiva_facebook_icon_v1';
+        const IG_ICON_KEY = 'cartiva_instagram_icon_v1';
+        const TK_ICON_KEY = 'cartiva_tiktok_icon_v1';
+        const raw = localStorage.getItem(LOGO_KEY);
+        const badge = document.querySelector('.logo-badge');
+        if(badge && raw){
+          badge.style.backgroundImage = `url('${raw}')`;
+          badge.style.backgroundSize = 'cover';
+          badge.style.backgroundPosition = 'center';
+          badge.textContent = '';
+        }
+        try{
+          const wa = localStorage.getItem('cartiva_whatsapp_url_v1');
+          const fb = localStorage.getItem('cartiva_facebook_url_v1');
+          const ig = localStorage.getItem('cartiva_instagram_url_v1');
+          const tk = localStorage.getItem('cartiva_tiktok_url_v1');
+          if(wa) document.getElementById('linkWhatsApp')?.setAttribute('href', wa);
+          if(fb) document.getElementById('linkFacebook')?.setAttribute('href', fb);
+          if(ig) document.getElementById('linkInstagram')?.setAttribute('href', ig);
+          if(tk) document.getElementById('linkTikTok')?.setAttribute('href', tk);
+        }catch{}
+        const applyIcon = (key, id) => {
+          const icon = localStorage.getItem(key);
+          const span = document.querySelector(`#${id} .social-icon`);
+          if(!span) return;
+          if(icon){ span.style.backgroundImage = `url('${icon}')`; span.classList.add('icon-loaded'); }
+          else{ span.style.backgroundImage = 'none'; span.classList.remove('icon-loaded'); }
+        };
+        applyIcon(WA_ICON_KEY,'linkWhatsApp');
+        applyIcon(FB_ICON_KEY,'linkFacebook');
+        applyIcon(IG_ICON_KEY,'linkInstagram');
+        applyIcon(TK_ICON_KEY,'linkTikTok');
+      }catch{}
+    })();
+  </script>
+
+  <div class="topbar">
+    <div class="container topbar-inner">
+      <div class="store">
+        <div class="store-name">Cartiva</div>
+      </div>
+      <div class="topbar-links">
+        <a id="linkWhatsApp" class="topbar-link" href="https://wa.me/message/A2PVWYE7Z7DJF1" target="_blank" rel="noreferrer">
+          <span class="social-icon">📱</span>WhatsApp
+        </a>
+        <span class="dot">•</span>
+        <a id="linkFacebook" class="topbar-link" href="https://www.facebook.com/profile.php?id=61586246738322" target="_blank" rel="noreferrer">
+          <span class="social-icon">📘</span>Facebook Page
+        </a>
+        <span class="dot">•</span>
+        <a id="linkInstagram" class="topbar-link" href="https://www.instagram.com/cartivabd/?hl=en" target="_blank" rel="noreferrer">
+          <span class="social-icon">📷</span>Instagram
+        </a>
+        <span class="dot">•</span>
+        <a id="linkTikTok" class="topbar-link" href="#" target="_blank" rel="noreferrer">
+          <span class="social-icon">🎵</span>TikTok
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <header class="header">
+    <div class="container header-inner">
+      <a class="logo" href="index.html" aria-label="Cartiva Home">
+        <div class="logo-badge">C</div>
+        <div class="logo-title">Cartiva</div>
+      </a>
+      <nav class="nav">
+        <a class="pill" href="index.html">Shop</a>
+        <a class="pill" href="cart.html">Cart <span class="badge" id="cartCount">0</span></a>
+        <a class="pill" href="checkout.html">Checkout</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container" style="padding:18px 0 28px">
+    <div class="cart-layout">
+      <section class="panel">
+        <h2 style="margin:0 0 10px; font-size:22px">Checkout</h2>
+        <div class="note" id="checkoutNote">&nbsp;</div>
+
+        <form id="checkoutForm" novalidate>
+          <div class="form-grid">
+            <div class="field">
+              <div class="label">Full name</div>
+              <input class="input" id="fullName" name="fullName" autocomplete="name" required placeholder="Your name" />
+            </div>
+            <div class="field">
+              <div class="label">Phone</div>
+              <input class="input" id="phone" name="phone" required placeholder="01XXXXXXXXX" inputmode="tel" />
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="label">Email</div>
+            <input class="input" id="email" name="email" type="email" required placeholder="you@example.com" autocomplete="email" />
+          </div>
+
+          <div class="field">
+            <div class="label">Address</div>
+            <input class="input" id="address" name="address" required placeholder="House, road, area" />
+          </div>
+
+          <div class="form-grid">
+            <div class="field">
+              <div class="label">City</div>
+              <input class="input" id="city" name="city" required placeholder="City" />
+            </div>
+            <div class="field">
+              <div class="label">Postal code</div>
+              <input class="input" id="postal" name="postal" required placeholder="Postal/ZIP" inputmode="numeric" />
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="label">Payment method</div>
+            <select class="input" id="payment" name="payment" required>
+              <option value="bkash">Bkash</option>
+              <option value="nagad">Nagad</option>
+              <option value="rocket">Rocket</option>
+              <option value="cash">Cash on delivery</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <div class="label">Delivery location</div>
+            <select class="input" id="deliveryLocation" name="deliveryLocation" required>
+              <option value="inside-dhaka">Delivery Inside Dhaka (৳60)</option>
+              <option value="outside-dhaka">Delivery Outside Dhaka (৳120)</option>
+            </select>
+          </div>
+
+          <button class="btn" type="submit" style="width:100%; margin-top:6px">Place order</button>
+          <div class="small" style="margin-top:10px">This is a client-side demo checkout. No real payment is processed.</div>
+        </form>
+      </section>
+
+      <aside class="panel">
+        <h3 style="margin:0 0 10px">Order Summary</h3>
+        <div class="totals">
+          <div class="total-line"><span>Total Product Price</span><strong id="tSubtotal">৳0.00</strong></div>
+          <div class="total-line"><span>Delivery charge</span><strong id="tDelivery">৳0.00</strong></div>
+          <div class="hr"></div>
+          <div class="total-line"><span>Total</span><strong id="tTotal">৳0.00</strong></div>
+        </div>
+
+        <div style="margin-top:14px">
+          <div class="label">Items</div>
+          <div id="itemsList" class="note" style="margin-top:6px"></div>
+        </div>
+
+        <div style="margin-top:14px" class="note">
+          After placing the order, the cart will be cleared and you’ll see an order id.
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <script src="data/products.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    window.CartivaApiBase = window.CartivaApiBase || 'http://localhost:3000';
+  </script>
+  <script>
+    // Apply admin logo from localStorage
+    (function(){
+      const KEY='cartiva_logo_url_v1';
+      function apply(){
+        try{
+          const raw=localStorage.getItem(KEY);
+          const badge=document.querySelector('.logo-badge');
+          if(!badge) return;
+          if(raw){
+            badge.style.backgroundImage=`url('${raw}')`;
+            badge.style.backgroundSize='cover';
+            badge.style.backgroundPosition='center';
+            badge.textContent='';
+          }
+        }catch{}
+      }
+      if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', apply);
+      else apply();
+    })();
+  </script>
+  <script>
+    // If admin saved products exist, apply them globally before checkout logic runs.
+    try {
+      const raw = localStorage.getItem('cartiva_products_v1');
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (Array.isArray(saved) && saved.length) window.CartivaProducts = saved;
+      }
+    } catch {}
+  </script>
+  <script>
+    const toast = document.getElementById('toast');
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => toast.classList.remove('show'), 1500);
+    }
+
+    function formatMoney(n) {
+      if (window.CartivaCart && typeof window.CartivaCart.formatMoney === 'function') {
+        let val = window.CartivaCart.formatMoney(n);
+        if (val.includes('$')) {
+          return val.replace('$', '৳');
+        }
+        return val;
+      }
+      return '৳' + Number(n).toFixed(2);
+    }
+
+    function getDeliveryCharge() {
+      const loc = document.getElementById('deliveryLocation')?.value;
+      const base = loc === 'outside-dhaka' ? 120 : 60;
+      const hasFree = window.CartivaCart?.cartHasFreeDeliveryEligible?.();
+      return hasFree ? 0 : (hasFree === false ? base : base);
+    }
+
+    function renderCart() {
+      try {
+        const LOGO_KEY = 'cartiva_logo_url_v1';
+        const WA_KEY = 'cartiva_whatsapp_url_v1';
+        const FB_KEY = 'cartiva_facebook_url_v1';
+        const IG_KEY = 'cartiva_instagram_url_v1';
+        const raw = localStorage.getItem(LOGO_KEY);
+        const badge = document.querySelector('.logo-badge');
+        if(badge && raw){
+          badge.style.backgroundImage = `url('${raw}')`;
+          badge.style.backgroundSize = 'cover';
+          badge.style.backgroundPosition = 'center';
+          badge.textContent = '';
+        }
+        const wa = localStorage.getItem(WA_KEY);
+        const fb = localStorage.getItem(FB_KEY);
+        const ig = localStorage.getItem(IG_KEY);
+        if(wa) document.getElementById('linkWhatsApp')?.setAttribute('href', wa);
+        if(fb) document.getElementById('linkFacebook')?.setAttribute('href', fb);
+        if(ig) document.getElementById('linkInstagram')?.setAttribute('href', ig);
+      } catch {}
+
+      const count = window.CartivaCart ? window.CartivaCart.getCartCount() : 0;
+      document.getElementById('cartCount').textContent = String(count);
+
+      const note = document.getElementById('checkoutNote');
+      const hasItems = count > 0;
+      note.textContent = hasItems ? 'Fill the details below to complete your order.' : 'Your cart is empty. Add items first.';
+
+      const totals = window.CartivaCart ? window.CartivaCart.getTotals() : { subtotal: 0 };
+      const deliveryCharge = hasItems ? getDeliveryCharge() : 0;
+      const subtotal = totals.subtotal;
+      const total = subtotal + deliveryCharge;
+
+      document.getElementById('tSubtotal').textContent = formatMoney(subtotal);
+      document.getElementById('tDelivery').textContent = formatMoney(deliveryCharge);
+      document.getElementById('tTotal').textContent = formatMoney(total);
+
+      const detailed = window.CartivaCart ? window.CartivaCart.getCartDetailed() : [];
+      const itemsList = detailed
+        .map(x => `${escapeHtml(x.product.name)} × ${x.qty}`)
+        .join('<br/>');
+      document.getElementById('itemsList').innerHTML = itemsList || 'No items';
+
+      document.getElementById('checkoutForm').style.opacity = hasItems ? '1' : '.6';
+      document.getElementById('checkoutForm').style.pointerEvents = hasItems ? 'auto' : 'none';
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '<')
+        .replaceAll('>', '>')
+        .replaceAll('"', '"')
+        .replaceAll("'", '&#039;');
+    }
+
+    function validateForm(data) {
+      const errors = [];
+      if (!data.fullName || data.fullName.trim().length < 2) errors.push('Full name is required');
+      if (!data.phone || data.phone.trim().length < 7) errors.push('Phone number is required');
+      if (!data.email || !/^\S+@\S+\.\S+$/.test(data.email)) errors.push('Valid email is required');
+      if (!data.address || data.address.trim().length < 5) errors.push('Address is required');
+      if (!data.city || data.city.trim().length < 2) errors.push('City is required');
+      if (!data.postal || data.postal.trim().length < 3) errors.push('Postal code is required');
+      if (!data.payment) errors.push('Payment method is required');
+      if (!data.deliveryLocation) errors.push('Delivery location is required');
+      return errors;
+    }
+
+    document.getElementById('checkoutForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const user = window.UserAuth?.getCurrentUser?.();
+      if (!user) {
+        showToast('Please login to place an order');
+        const url = new URL('login.html', location.href);
+        url.searchParams.set('returnTo', 'checkout.html');
+        setTimeout(() => (location.href = url.toString()), 200);
+        return;
+      }
+
+
+      const data = {
+        fullName: document.getElementById('fullName').value,
+        phone: document.getElementById('phone').value,
+        email: document.getElementById('email').value,
+        address: document.getElementById('address').value,
+        city: document.getElementById('city').value,
+        postal: document.getElementById('postal').value,
+        payment: document.getElementById('payment').value,
+        deliveryLocation: document.getElementById('deliveryLocation').value,
+      };
+
+
+      const errors = validateForm(data);
+      if (errors.length) {
+        showToast(errors[0]);
+        return;
+      }
+
+      try {
+        const raw = localStorage.getItem('cartiva_products_v1');
+        if (raw) {
+          const saved = JSON.parse(raw);
+          if (Array.isArray(saved) && saved.length) window.CartivaProducts = saved;
+        }
+      } catch {}
+
+      const productTotals = window.CartivaCart ? window.CartivaCart.getTotals() : { subtotal: 0 };
+      const deliveryCharge = getDeliveryCharge();
+      const total = productTotals.subtotal + deliveryCharge;
+
+      try {
+        const token = window.UserAuth?.getToken?.();
+        const apiBase = window.CartivaApiBase || 'http://localhost:3000';
+        const items = window.CartivaCart.getCartDetailed().map(x => ({
+          productId: x.product.id,
+          name: x.product.name,
+          price: x.product.price,
+          qty: x.qty,
+        }));
+
+        const res = await fetch(apiBase + '/api/orders', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: 'Bearer ' + token } : {}),
+          },
+          body: JSON.stringify({
+            customer: data,
+            payment: data.payment,
+            deliveryLocation: data.deliveryLocation,
+            deliveryCharge,
+            totals: { subtotal: productTotals.subtotal, delivery: deliveryCharge, total },
+            items,
+          }),
+        });
+
+        const out = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          showToast(out?.error || 'Order failed');
+          return;
+        }
+
+        const orderId = out?.orderId || '(unknown)';
+
+        if (window.CartivaCart && window.CartivaCart.clearCart) {
+          window.CartivaCart.clearCart();
+        }
+
+        showToast(`Order placed! ${orderId}`);
+        const method = data.payment === 'bkash' ? 'Bkash' : data.payment === 'nagad' ? 'Nagad' : data.payment === 'rocket' ? 'Rocket' : 'Cash on delivery';
+        document.getElementById('checkoutNote').innerHTML = `Order placed successfully. <b>${escapeHtml(orderId)}</b> (Payment: <b>${escapeHtml(method)}</b>, Total: <b>${formatMoney(total)}</b>). You can shop again.`;
+        document.getElementById('checkoutForm').style.pointerEvents = 'none';
+        renderCart();
+      } catch {
+        showToast('Order failed');
+      }
+
+    });
+
+    document.getElementById('deliveryLocation')?.addEventListener('change', renderCart);
+    window.addEventListener('cartiva:cartChanged', renderCart);
+
+    function syncAuthPill(){
+      try{
+        const pill=document.getElementById('authPill');
+        if(!pill || !window.UserAuth) return;
+        const u=window.UserAuth.getCurrentUser();
+        if(u){
+          pill.textContent='Logout ('+u.email+')';
+          pill.href='#';
+          pill.style.display='inline-flex';
+          pill.addEventListener('click',(e)=>{
+            e.preventDefault();
+            window.UserAuth.logout();
+            syncAuthPill();
+            showToast('Logged out');
+          },{once:true});
+        } else {
+          pill.textContent='Login';
+          pill.href='login.html';
+          pill.style.display='none';
+        }
+      }catch{}
+    }
+
+    renderCart();
+    syncAuthPill();
+  </script>
+</body>
+</html>

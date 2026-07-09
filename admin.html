@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cartiva Admin</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .admin-wrap{ padding:18px 0 28px; }
+    .admin-grid{ display:grid; grid-template-columns: 1fr; gap:14px; }
+    @media (min-width: 980px){ .admin-grid{ grid-template-columns: 1fr 1fr; } }
+    textarea.input{ min-height: 110px; resize: vertical; }
+    .admin-actions{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .password-field{ position: relative; }
+    .password-field input{ padding-right: 42px; }
+    .password-field button.password-toggle{
+      position: absolute; top: 50%; right: 10px; transform: translateY(-50%);
+      border: none; background: transparent; color: var(--text); font-size: 16px; cursor: pointer; padding: 4px;
+    }
+    .table{ width:100%; border-collapse: collapse; overflow:hidden; border-radius:14px; }
+    .table th, .table td{ padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08); text-align:left; vertical-align:top; }
+    .table th{ color:#fff; font-weight:950; background: rgba(255,255,255,0.03); }
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    .muted2{ color: var(--muted); }
+    .cloud-status { padding: 10px; border-radius: 8px; margin-bottom: 12px; font-weight: bold; background: rgba(255,255,255,0.05); text-align: center;}
+  </style>
+</head>
+<body>
+  <div class="toast" id="toast"></div>
+
+  <div class="topbar">
+    <div class="container topbar-inner">
+      <div class="store"><div class="store-name">Cartiva Admin</div></div>
+      <div class="topbar-links">
+        <a id="linkWhatsApp" class="topbar-link" href="#" target="_blank" rel="noreferrer"><span class="social-icon">📱</span>WhatsApp</a>
+        <span class="dot">•</span>
+        <a id="linkFacebook" class="topbar-link" href="#" target="_blank" rel="noreferrer"><span class="social-icon">📘</span>Facebook Page</a>
+        <span class="dot">•</span>
+        <a id="linkInstagram" class="topbar-link" href="#" target="_blank" rel="noreferrer"><span class="social-icon">📷</span>Instagram</a>
+        <span class="dot">•</span>
+        <a id="linkTikTok" class="topbar-link" href="#" target="_blank" rel="noreferrer"><span class="social-icon">🎵</span>TikTok</a>
+      </div>
+    </div>
+  </div>
+
+  <header class="header">
+    <div class="container header-inner">
+      <a class="logo" href="index.html">
+        <div class="logo-badge">C</div>
+        <div class="logo-title">Cartiva</div>
+      </a>
+      <nav class="nav">
+        <a class="pill" href="index.html">Shop</a>
+        <a class="pill" href="cart.html">Cart</a>
+        <a class="pill" href="checkout.html">Checkout</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container admin-wrap">
+    <div id="cloudStatus" class="cloud-status" style="color: #f59e0b;">☁️ Connecting to Live Cloud Database...</div>
+
+    <section class="panel" id="loginSection">
+      <h2 style="margin:0 0 10px; font-size:22px">Admin Login</h2>
+      <form id="loginForm" novalidate>
+        <div class="form-grid">
+          <div class="field">
+            <div class="label">Admin username</div>
+            <input class="input" id="adminUser" placeholder="admin" required />
+          </div>
+          <div class="field password-field">
+            <div class="label">Admin password</div>
+            <input class="input" id="adminPass" type="password" placeholder="admin123" required />
+            <button type="button" class="password-toggle" id="btnToggleLoginPassword">👁️</button>
+          </div>
+        </div>
+        <div class="admin-actions" style="margin-top:12px">
+          <button class="btn" type="submit">Login</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="adminPanel" class="panel" style="display:none; margin-top:14px">
+      <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:flex-start">
+        <div>
+          <h2 style="margin:0 0 8px; font-size:22px">Product Manager</h2>
+          <div class="note" style="margin:0">অ্যাডমিন প্যানেলে যেকোনো পরিবর্তন এখন সরাসরি অনলাইন ক্লাউডে অটো-সেভ হয়ে যাবে!</div>
+        </div>
+        <div class="admin-actions">
+          <a class="btn secondary" href="index.html">View Shop</a>
+          <button class="btn secondary" type="button" id="btnLogout">Logout</button>
+        </div>
+      </div>
+
+      <div class="admin-grid" style="margin-top:14px">
+        <div>
+          <div class="field"><div class="label">Product ID (unique)</div><input class="input mono" id="pId" placeholder="p1" required /></div>
+          <div class="field"><div class="label">Name</div><input class="input" id="pName" placeholder="Product name" required /></div>
+          <div class="form-grid">
+            <div class="field"><div class="label">Original Price</div><input class="input" id="pOriginalPrice" placeholder="15.99" /></div>
+            <div class="field"><div class="label">Discount Price</div><input class="input" id="pPrice" placeholder="12.99" required /></div>
+          </div>
+          <div class="form-grid">
+            <div class="field">
+              <div class="label">Stock Status</div>
+              <select class="input" id="pStock" required>
+                <option value="in-stock">In Stock</option>
+                <option value="out-of-stock">Out of Stock</option>
+                <option value="upcoming">Upcoming</option>
+              </select>
+            </div>
+            <div class="field">
+              <div class="label">Delivery Option</div>
+              <select class="input" id="pDeliveryOption" required>
+                <option value="delivery-included">Delivery Include</option>
+                <option value="free-delivery">Free delivery</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <div class="label">Category</div>
+            <select class="input" id="pCategory" required>
+              <option value="HeadPhone">HeadPhone</option>
+              <option value="TWS">TWS</option>
+              <option value="SmartWatch">SmartWatch</option>
+              <option value="Fashion">Fashion</option>
+              <option value="Beauty products">Beauty products</option>
+              <option value="Health care">Health care</option>
+              <option value="Home decor">Home decor</option>
+            </select>
+          </div>
+          <div class="field"><div class="label">Description</div><textarea class="input" id="pDesc" placeholder="Short description" required></textarea></div>
+          <div class="field">
+            <div class="label">Product photos (URLs, one per line)</div>
+            <textarea class="input" id="pImages" placeholder="https://..." rows="3"></textarea>
+          </div>
+
+          <div class="admin-actions" style="margin-top:12px">
+            <button class="btn" type="button" id="btnSave">Save & Upload Product</button>
+            <button class="btn secondary" type="button" id="btnClearForm">Clear Form</button>
+          </div>
+
+          <div class="panel" style="margin-top:20px; background:rgba(0,0,0,0.2)">
+            <h3>Website Global Settings</h3>
+            <div class="field"><div class="label">Logo Image URL</div><input class="input" id="logoUrl" placeholder="https://..." /></div>
+            <div class="field"><div class="label">WhatsApp URL</div><input class="input" id="waUrl" placeholder="https://wa.me/..." /></div>
+            <div class="field"><div class="label">Facebook URL</div><input class="input" id="fbUrl" placeholder="https://facebook.com/..." /></div>
+            <div class="field"><div class="label">Instagram URL</div><input class="input" id="igUrl" placeholder="https://instagram.com/..." /></div>
+            <div class="field"><div class="label">TikTok URL</div><input class="input" id="tiktokUrl" placeholder="https://tiktok.com/@..." /></div>
+            <button class="btn" type="button" id="btnSaveSettings" style="margin-top:10px">Save Global Settings</button>
+          </div>
+        </div>
+
+        <div>
+          <h3>Existing Live Products</h3>
+          <div style="margin-top:10px; overflow:auto; max-height:500px">
+            <table class="table">
+              <thead>
+                <tr><th>ID</th><th>Name</th><th>Price</th><th>Stock</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="productsTableBody"></tbody>
+            </table>
+          </div>
+          <button class="btn secondary" type="button" id="btnResetToDefaultProducts" style="margin-top:12px; width:100%">Reset Database to Defaults</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="data/products.js"></script>
+  <script>
+    (function () {
+      // --- CLOUD DATABASE CONFIGURATION ---
+      const BIN_ID = '6668d298ad19ca34f877ca6b'; 
+      const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+      
+      let globalStore = {
+        products: [],
+        settings: { logoUrl: '', waUrl: '', fbUrl: '', igUrl: '', tikTokUrl: '' }
+      };
+
+      const toast = document.getElementById('toast');
+      function showToast(msg) {
+        toast.textContent = msg; toast.classList.add('show');
+        clearTimeout(showToast._t); showToast._t = setTimeout(() => toast.classList.remove('show'), 1500);
+      }
+
+      // Load Data From Cloud
+      async function fetchCloudData() {
+        try {
+          const res = await fetch(API_URL + '/latest');
+          const data = await res.json();
+          globalStore = data.record;
+          document.getElementById('cloudStatus').textContent = '⚡ Connected to Live Cloud Database (Sync Active)';
+          document.getElementById('cloudStatus').style.color = '#22c55e';
+          applyGlobalUI();
+          renderProductsTable();
+        } catch (e) {
+          document.getElementById('cloudStatus').textContent = '❌ Cloud Sync Failed. Offline mode active.';
+          document.getElementById('cloudStatus').style.color = '#ef4444';
+          if(window.CartivaProducts) globalStore.products = window.CartivaProducts;
+          renderProductsTable();
+        }
+      }
+
+      // Save Data to Cloud Automatically
+      async function saveCloudData() {
+        document.getElementById('cloudStatus').textContent = '⏳ Uploading changes to cloud...';
+        document.getElementById('cloudStatus').style.color = '#f59e0b';
+        try {
+          await fetch(API_URL, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(globalStore)
+          });
+          document.getElementById('cloudStatus').textContent = '⚡ Saved Successfully to Cloud Database!';
+          document.getElementById('cloudStatus').style.color = '#22c55e';
+          showToast('Database Synchronized Online!');
+        } catch (e) {
+          showToast('Failed to sync changes with cloud.');
+        }
+      }
+
+      function applyGlobalUI() {
+        const s = globalStore.settings;
+        if(s.logoUrl) {
+          const b = document.querySelector('.logo-badge');
+          if(b) { b.style.backgroundImage = `url('${s.logoUrl}')`; b.style.backgroundSize='cover'; b.textContent=''; }
+        }
+        if(s.waUrl) document.getElementById('linkWhatsApp').href = s.waUrl;
+        if(s.fbUrl) document.getElementById('linkFacebook').href = s.fbUrl;
+        if(s.igUrl) document.getElementById('linkInstagram').href = s.igUrl;
+        if(s.tikTokUrl) document.getElementById('linkTikTok').href = s.tikTokUrl;
+        if(s.tiktokUrl) document.getElementById('linkTikTok').href = s.tiktokUrl;
+        
+        document.getElementById('logoUrl').value = s.logoUrl || '';
+        document.getElementById('waUrl').value = s.waUrl || '';
+        document.getElementById('fbUrl').value = s.fbUrl || '';
+        document.getElementById('igUrl').value = s.igUrl || '';
+        document.getElementById('tiktokUrl').value = s.tikTokUrl || s.tiktokUrl || '';
+      }
+
+      function renderProductsTable() {
+        const tbody = document.getElementById('productsTableBody');
+        tbody.innerHTML = globalStore.products.map(p => `
+          <tr>
+            <td class="mono">${p.id}</td>
+            <td><b>${p.name}</b></td>
+            <td>৳${p.price}</td>
+            <td><span style="color:${p.stock==='in-stock'?'#22c55e':'#ef4444'}">${p.stock}</span></td>
+            <td>
+              <button class="btn secondary" style="padding:4px 8px; font-size:12px" onclick="editProduct('${p.id}')">Edit</button>
+              <button class="btn secondary" style="padding:4px 8px; font-size:12px; background:#ef4444; color:#fff" onclick="deleteProduct('${p.id}')">Delete</button>
+            </td>
+          </tr>
+        `).join('');
+      }
+
+      window.editProduct = function(id) {
+        const p = globalStore.products.find(x => x.id === id);
+        if(!p) return;
+        document.getElementById('pId').value = p.id;
+        document.getElementById('pId').disabled = true;
+        document.getElementById('pName').value = p.name;
+        document.getElementById('pOriginalPrice').value = p.originalPrice || '';
+        document.getElementById('pPrice').value = p.price;
+        document.getElementById('pStock').value = p.stock || 'in-stock';
+        document.getElementById('pDeliveryOption').value = p.deliveryOption || 'delivery-included';
+        document.getElementById('pCategory').value = p.category;
+        document.getElementById('pDesc').value = p.description;
+        document.getElementById('pImages').value = Array.isArray(p.images) ? p.images.join('\n') : (p.image ? p.image : '');
+      };
+
+      window.deleteProduct = async function(id) {
+        if(!confirm('Delete this product from server permanently?')) return;
+        globalStore.products = globalStore.products.filter(x => x.id !== id);
+        renderProductsTable();
+        await saveCloudData();
+      };
+
+      document.getElementById('btnSave').addEventListener('click', async () => {
+        const id = document.getElementById('pId').value.trim();
+        const name = document.getElementById('pName').value.trim();
+        const price = parseFloat(document.getElementById('pPrice').value);
+        if(!id || !name || isNaN(price)) return alert('Please fill required fields.');
+
+        const imgs = document.getElementById('pImages').value.split('\n').map(x => x.trim()).filter(Boolean);
+
+        const pData = {
+          id, name, price,
+          originalPrice: parseFloat(document.getElementById('pOriginalPrice').value) || null,
+          stock: document.getElementById('pStock').value,
+          deliveryOption: document.getElementById('pDeliveryOption').value,
+          category: document.getElementById('pCategory').value,
+          description: document.getElementById('pDesc').value,
+          image: imgs[0] || 'https://via.placeholder.com/600x400',
+          images: imgs
+        };
+
+        const idx = globalStore.products.findIndex(x => x.id === id);
+        if(idx > -1) globalStore.products[idx] = pData;
+        else globalStore.products.push(pData);
+
+        document.getElementById('pId').disabled = false;
+        document.getElementById('pId').value = '';
+        document.getElementById('pName').value = '';
+        document.getElementById('pPrice').value = '';
+        document.getElementById('pOriginalPrice').value = '';
+        document.getElementById('pDesc').value = '';
+        document.getElementById('pImages').value = '';
+        
+        renderProductsTable();
+        await saveCloudData();
+      });
+
+      document.getElementById('btnSaveSettings').addEventListener('click', async () => {
+        globalStore.settings.logoUrl = document.getElementById('logoUrl').value.trim();
+        globalStore.settings.waUrl = document.getElementById('waUrl').value.trim();
+        globalStore.settings.fbUrl = document.getElementById('fbUrl').value.trim();
+        globalStore.settings.igUrl = document.getElementById('igUrl').value.trim();
+        globalStore.settings.tikTokUrl = document.getElementById('tiktokUrl').value.trim();
+        applyGlobalUI();
+        await saveCloudData();
+      });
+
+      document.getElementById('btnResetToDefaultProducts').addEventListener('click', async () => {
+        if(!confirm('Reset entire online database to factory default javascript files?')) return;
+        globalStore.products = window.CartivaProducts || [];
+        renderProductsTable();
+        await saveCloudData();
+      });
+
+      document.getElementById('btnClearForm').addEventListener('click', () => {
+        document.getElementById('pId').disabled = false;
+      });
+
+      // --- ORIGINAL ACCOUNT SECURITY LOGIC RESTORED ---
+      const ACCOUNTS_STORAGE_KEY = 'cartiva_admin_accounts_v1';
+      const SESSION_STORAGE_KEY = 'cartiva_admin_session_v1';
+
+      function getAccounts() {
+        try {
+          const raw = localStorage.getItem(ACCOUNTS_STORAGE_KEY);
+          if (raw) return JSON.parse(raw);
+        } catch {}
+        return [{ username: 'admin', password: '123' }]; // Your exact original credential
+      }
+
+      function checkSession() {
+        try {
+          const active = localStorage.getItem(SESSION_STORAGE_KEY);
+          if (active === 'true') {
+            document.getElementById('loginSection').style.display = 'none';
+            document.getElementById('adminPanel').style.display = 'block';
+          }
+        } catch {}
+      }
+
+      document.getElementById('loginForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const u = document.getElementById('adminUser').value.trim();
+        const p = document.getElementById('adminPass').value.trim();
+        
+        const accounts = getAccounts();
+        const found = accounts.find(a => a.username === u && a.password === p);
+
+        if (found) {
+          localStorage.setItem(SESSION_STORAGE_KEY, 'true');
+          document.getElementById('loginSection').style.display = 'none';
+          document.getElementById('adminPanel').style.display = 'block';
+          showToast('Welcome Admin');
+        } else {
+          alert('Invalid login credentials');
+        }
+      });
+
+      document.getElementById('btnLogout').addEventListener('click', () => {
+        localStorage.removeItem(SESSION_STORAGE_KEY);
+        document.getElementById('adminPanel').style.display = 'none';
+        document.getElementById('loginSection').style.display = 'block';
+      });
+
+      // Toggle Password View
+      document.getElementById('btnToggleLoginPassword').addEventListener('click', () => {
+        const el = document.getElementById('adminPass');
+        el.type = el.type === 'password' ? 'text' : 'password';
+      });
+
+      // Init load
+      checkSession();
+      fetchCloudData();
+    })();
+  </script>
+</body>
+</html>

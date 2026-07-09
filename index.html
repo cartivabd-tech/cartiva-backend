@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cartiva - Shop</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="toast" id="toast"></div>
+
+  <div class="topbar">
+    <div class="container topbar-inner">
+      <div class="store"><div class="store-name" id="liveStoreName">Cartiva</div></div>
+      <div class="topbar-links">
+        <a id="linkWhatsApp" class="topbar-link" href="#" target="_blank" rel="noreferrer"><span class="social-icon">📱</span>WhatsApp</a>
+        <span class="dot">•</span>
+        <a id="linkFacebook" class="topbar-link" href="#" target="_blank" rel="noreferrer"><span class="social-icon">📘</span>Facebook Page</a>
+        <span class="dot">•</span>
+        <a id="linkInstagram" class="topbar-link" href="#" target="_blank" rel="noreferrer"><span class="social-icon">📷</span>Instagram</a>
+        <span class="dot">•</span>
+        <a id="linkTikTok" class="topbar-link" href="#" target="_blank" rel="noreferrer"><span class="social-icon">🎵</span>TikTok</a>
+      </div>
+    </div>
+  </div>
+
+  <header class="header">
+    <div class="container header-inner">
+      <a class="logo" href="index.html">
+        <div class="logo-badge">C</div>
+        <div class="logo-title">Cartiva</div>
+      </a>
+      <nav class="nav">
+        <a class="pill" href="index.html">Shop</a>
+        <a class="pill" href="cart.html">Cart <span class="badge" id="cartCount">0</span></a>
+        <a class="pill" href="checkout.html">Checkout</a>
+        <a class="pill" id="authPill" href="login.html" style="display:none">Login</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <div class="hero-grid">
+        <div class="hero-card">
+          <h1>Shop smarter with Cartiva</h1>
+          <p>১০০% ডাইনামিক রিয়েল-টাইম ক্লাউড স্টোর। অ্যাডমিন প্যানেল থেকে যেকোনো আপলোড সাথে সাথে এখানে লাইভ দেখতে পাবেন।</p>
+        </div>
+        <div class="hero-side">
+          <div class="quick-stat">
+            <div class="k">Total items in cart</div>
+            <div class="v" id="cartCountBig">0</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="controls">
+        <div class="left-controls">
+          <div class="search" role="search">
+            <span class="small">🔎</span>
+            <input id="searchInput" type="search" placeholder="Search products..." />
+          </div>
+          <select class="select" id="categorySelect">
+            <option value="all">All categories</option>
+          </select>
+        </div>
+        <div class="small">Products: <strong id="productCount">0</strong></div>
+      </div>
+
+      <div class="grid" id="productGrid">Loading dynamic catalog...</div>
+    </section>
+  </main>
+
+  <script src="js/app.js"></script>
+  <script>
+    // Set your Render backend URL here once deployed
+    window.CartivaApiBase = window.CartivaApiBase || 'http://localhost:3000';
+  </script>
+  <script>
+    const BIN_ID = '6668d298ad19ca34f877ca6b';
+    const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}/latest`;
+
+    let liveProducts = [];
+
+    const grid = document.getElementById('productGrid');
+    const searchInput = document.getElementById('searchInput');
+    const categorySelect = document.getElementById('categorySelect');
+    const productCount = document.getElementById('productCount');
+    const toast = document.getElementById('toast');
+
+    function showToast(msg) {
+      toast.textContent = msg; toast.classList.add('show');
+      clearTimeout(showToast._t); showToast._t = setTimeout(() => toast.classList.remove('show'), 1500);
+    }
+
+    async function initLiveStore() {
+      try {
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        const store = data.record;
+        
+        liveProducts = store.products || window.CartivaProducts || [];
+        
+        // Setup settings
+        if(store.settings) {
+          const s = store.settings;
+          if(s.logoUrl) {
+            document.querySelectorAll('.logo-badge').forEach(b => {
+              b.style.backgroundImage = `url('${s.logoUrl}')`;
+              b.style.backgroundSize = 'cover'; b.textContent = '';
+            });
+          }
+          if(s.waUrl) document.getElementById('linkWhatsApp').href = s.waUrl;
+          if(s.fbUrl) document.getElementById('linkFacebook').href = s.fbUrl;
+          if(s.igUrl) document.getElementById('linkInstagram').href = s.igUrl;
+          if(s.tikTokUrl) document.getElementById('linkTikTok').href = s.tikTokUrl;
+          if(s.tiktokUrl) document.getElementById('linkTikTok').href = s.tiktokUrl;
+        }
+      } catch(e) {
+        console.log("Offline mode fallback");
+        liveProducts = window.CartivaProducts || [];
+      }
+
+      initCategories();
+      renderProducts();
+    }
+
+    function initCategories() {
+      const cats = Array.from(new Set(liveProducts.map(p => p.category))).sort();
+      cats.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c; opt.textContent = c;
+        categorySelect.appendChild(opt);
+      });
+    }
+
+    function renderProducts() {
+      const q = (searchInput.value || '').trim().toLowerCase();
+      const cat = categorySelect.value;
+      
+      let filtered = liveProducts;
+      if (cat && cat !== 'all') filtered = filtered.filter(p => p.category === cat);
+      if (q) filtered = filtered.filter(p => (p.name + ' ' + p.description).toLowerCase().includes(q));
+
+      productCount.textContent = String(filtered.length);
+
+      if(!filtered.length) {
+        grid.innerHTML = '<div style="padding:40px; text-align:center; width:100%">No products found.</div>';
+        return;
+      }
+
+      grid.innerHTML = filtered.map(p => `
+        <div class="product" style="cursor:pointer">
+          <div class="product-image-wrap">
+            <img class="product-image" src="${p.image || (p.images ? p.images[0] : '')}" alt="${p.name}" />
+            ${p.originalPrice ? `<span class="badge" style="background:#ef4444; position:absolute; top:10px; left:10px; color:#fff">Sale</span>` : ''}
+          </div>
+          <div class="product-body">
+            <div class="small muted" style="text-transform:uppercase; font-size:11px; font-weight:bold; margin-bottom:4px">${p.category}</div>
+            <h3 class="product-title" style="margin:0 0 8px 0; font-size:16px">${p.name}</h3>
+            <p style="font-size:13px; color:var(--muted); margin:0 0 12px 0; display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${p.description}</p>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:auto">
+              <div>
+                ${p.originalPrice ? `<span style="text-decoration:line-through; color:var(--muted); font-size:13px; margin-right:6px">৳${p.originalPrice}</span>` : ''}
+                <strong style="color:var(--accent); font-size:18px">৳${p.price}</strong>
+              </div>
+              <button class="btn" style="padding:6px 12px; font-size:13px" data-add="${p.id}" ${p.stock==='out-of-stock'?'disabled':''}>
+                ${p.stock === 'out-of-stock' ? 'Out of Stock' : 'Add +'}
+              </button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      // Add handler click + product detail popup on card click
+      grid.querySelectorAll('.product').forEach(card => {
+        const addBtn = card.querySelector('[data-add]');
+        const id = addBtn?.getAttribute('data-add');
+        card.addEventListener('click', () => {
+          if(!id) return;
+          const p = liveProducts.find(x => x.id === id);
+          if(!p) return;
+          openProductModal(p);
+        });
+        if(addBtn){
+          addBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const pid = addBtn.getAttribute('data-add');
+            window.CartivaCart.addToCart(pid, 1);
+            showToast('Added to cart');
+            syncCartBadges();
+          });
+        }
+      });
+    }
+
+    function buildProductModalHTML(p) {
+      const images = Array.isArray(p.images) && p.images.length ? p.images : (p.image ? [p.image] : []);
+      const mainImage = images[0] || '';
+      const hasDiscount = p.originalPrice && p.originalPrice > p.price;
+      const stock = p.stock || 'in-stock';
+      const stockColor = stock === 'in-stock' ? '#22c55e' : stock === 'out-of-stock' ? '#ef4444' : '#f59e0b';
+      const stockBg = stock === 'in-stock' ? 'rgba(34, 197, 94, 0.12)' : stock === 'out-of-stock' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.12)';
+      const stockLabel = stock.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      const deliveryOption = p.deliveryOption || 'delivery-included';
+      const freeDelivery = deliveryOption === 'free-delivery';
+
+      const thumbs = images.map((src, i) => `
+        <div class="modal-thumb" data-thumb-index="${i}" style="background-image:url('${src}')" aria-label="Thumbnail ${i+1}"></div>
+      `).join('');
+
+      return `
+        <div class="modal-header">
+          <div class="modal-badges">
+            <div class="modal-badge" style="background:${stockBg}; color:${stockColor}">${escapeHtml(stockLabel)}</div>
+            ${freeDelivery ? `<div class="modal-badge" style="background:rgba(34,197,94,0.15); color:#22c55e">Free delivery</div>` : ''}
+            ${hasDiscount ? `<div class="modal-badge">Sale</div>` : ''}
+          </div>
+          <div style="display:flex; justify-content:space-between; gap:14px; align-items:flex-start">
+            <div>
+              <div class="small" style="text-transform:uppercase; font-size:11px; font-weight:900; color:var(--muted); margin-bottom:6px">${escapeHtml(p.category || '')}</div>
+              <h3 style="margin:0; font-size:22px">${escapeHtml(p.name || '')}</h3>
+            </div>
+            <div style="text-align:right">
+              <div class="modal-price-row">৳${Number(p.price || 0)}</div>
+              ${hasDiscount ? `<div class="small" style="text-decoration:line-through; color:var(--muted); margin-top:3px">৳${Number(p.originalPrice)}</div>` : ''}
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-body">
+          <div>
+            <img class="modal-image" id="modalMainImage" src="${mainImage}" alt="${escapeHtml(p.name || '')}" />
+            ${thumbs ? `<div class="modal-thumbnails">${thumbs}</div>` : ''}
+          </div>
+
+          <p style="white-space:pre-wrap">${escapeHtml(p.description || '')}</p>
+
+          <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap">
+            <div class="small" style="color:var(--muted); font-weight:800">Product ID: <span class="mono">${escapeHtml(p.id || '')}</span></div>
+            <button class="btn" type="button" id="modalAddBtn" ${stock === 'out-of-stock' || stock === 'upcoming' ? 'disabled' : ''}>
+              ${stock === 'out-of-stock' ? 'Out of Stock' : stock === 'upcoming' ? 'Coming Soon' : 'Add to cart'}
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '<')
+        .replaceAll('>', '>')
+        .replaceAll('"', '"')
+        .replaceAll("'", '&#039;');
+    }
+
+    function openProductModal(p) {
+      // Ensure modal elements exist once.
+      let overlay = document.getElementById('productModalOverlay');
+      if(!overlay){
+        overlay = document.createElement('div');
+        overlay.id = 'productModalOverlay';
+        overlay.className = 'modal-overlay';
+        overlay.innerHTML = `
+          <div class="modal-window" role="dialog" aria-modal="true">
+            <button class="modal-close" type="button" aria-label="Close">×</button>
+            <div id="productModalContent"></div>
+          </div>
+        `;
+        document.body.appendChild(overlay);
+      }
+
+      const content = document.getElementById('productModalContent');
+      content.innerHTML = buildProductModalHTML(p);
+
+      overlay.classList.add('open');
+
+      const closeBtn = overlay.querySelector('.modal-close');
+      const onClose = () => {
+        overlay.classList.remove('open');
+      };
+      closeBtn.addEventListener('click', onClose, { once: true });
+      overlay.addEventListener('click', (e) => {
+        if(e.target === overlay) onClose();
+      }, { once: true });
+
+      // Thumbnails logic
+      const thumbs = overlay.querySelectorAll('[data-thumb-index]');
+      thumbs.forEach(t => {
+        t.addEventListener('click', () => {
+          const idx = Number(t.getAttribute('data-thumb-index'));
+          const images = Array.isArray(p.images) && p.images.length ? p.images : (p.image ? [p.image] : []);
+          const src = images[idx] || images[0] || '';
+          const main = overlay.querySelector('#modalMainImage');
+          if(main) main.src = src;
+        });
+      });
+
+      const addBtn = overlay.querySelector('#modalAddBtn');
+      addBtn?.addEventListener('click', () => {
+        window.CartivaCart.addToCart(p.id, 1);
+        showToast('Added to cart');
+        syncCartBadges();
+        onClose();
+      });
+    }
+
+    function syncCartBadges() {
+      const count = window.CartivaCart.getCartCount();
+      document.getElementById('cartCount').textContent = String(count);
+      document.getElementById('cartCountBig').textContent = String(count);
+    }
+
+    function syncAuthPill() {
+      try {
+        const pill = document.getElementById('authPill');
+        if (!pill || !window.UserAuth) return;
+        const u = window.UserAuth.getCurrentUser();
+        if (u) {
+          pill.textContent = 'Logout (' + u.email + ')';
+          pill.href = '#';
+          pill.style.display = 'inline-flex';
+          pill.addEventListener('click', (e) => {
+            e.preventDefault();
+            window.UserAuth.logout();
+            syncAuthPill();
+            showToast('Logged out');
+          }, { once: true });
+        } else {
+          pill.textContent = 'Login';
+          pill.href = 'login.html';
+          pill.style.display = 'none';
+        }
+      } catch {}
+    }
+
+    searchInput.addEventListener('input', renderProducts);
+    categorySelect.addEventListener('change', renderProducts);
+    window.addEventListener('cartiva:cartChanged', syncCartBadges);
+
+    // Initial load
+    initLiveStore();
+    setTimeout(() => {
+      syncCartBadges();
+      syncAuthPill();
+    }, 500);
+  </script>
+</body>
+</html>

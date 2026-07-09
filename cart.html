@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cartiva - Cart</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="toast" id="toast"></div>
+
+  <script>
+    (function(){
+      const KEY='cartiva_logo_url_v1';
+      const WA_KEY='cartiva_whatsapp_url_v1';
+      const FB_KEY='cartiva_facebook_url_v1';
+      const IG_KEY='cartiva_instagram_url_v1';
+      const TK_KEY='cartiva_tiktok_url_v1';
+      const WA_ICON_KEY = 'cartiva_whatsapp_icon_v1';
+      const FB_ICON_KEY = 'cartiva_facebook_icon_v1';
+      const IG_ICON_KEY = 'cartiva_instagram_icon_v1';
+      function apply(){
+      try{
+        const raw=localStorage.getItem(KEY);
+        const badge=document.querySelector('.logo-badge');
+        if(!badge) return;
+        if(raw){
+          badge.style.backgroundImage=`url('${raw}')`;
+          badge.style.backgroundSize='cover';
+          badge.style.backgroundPosition='center';
+          badge.textContent='';
+        }
+        try{
+          const wa = localStorage.getItem(WA_KEY);
+          const fb = localStorage.getItem(FB_KEY);
+          const ig = localStorage.getItem(IG_KEY);
+          const tk = localStorage.getItem(TK_KEY);
+          if(wa) document.getElementById('linkWhatsApp')?.setAttribute('href', wa);
+          if(fb) document.getElementById('linkFacebook')?.setAttribute('href', fb);
+          if(ig) document.getElementById('linkInstagram')?.setAttribute('href', ig);
+          if(tk) document.getElementById('linkTikTok')?.setAttribute('href', tk);
+        }catch{}
+        const applyIcon = (key, id) => {
+          const icon = localStorage.getItem(key);
+          const span = document.querySelector(`#${id} .social-icon`);
+          if(!span) return;
+          if(icon){ span.style.backgroundImage = `url('${icon}')`; span.classList.add('icon-loaded'); }
+          else{ span.style.backgroundImage = 'none'; span.classList.remove('icon-loaded'); }
+        };
+        applyIcon(WA_ICON_KEY,'linkWhatsApp');
+        applyIcon(FB_ICON_KEY,'linkFacebook');
+        applyIcon(IG_ICON_KEY,'linkInstagram');
+        // TikTok icon not implemented in CSS/localStorage yet (optional)
+        // applyIcon(TK_ICON_KEY,'linkTikTok');
+        
+      }catch{}
+    }
+      if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', apply);
+      else apply();
+    })();
+  </script>
+
+  <div class="topbar">
+    <div class="container topbar-inner">
+      <div class="store">
+        <div class="store-name">Cartiva</div>
+      </div>
+      <div class="topbar-links">
+        <a id="linkWhatsApp" class="topbar-link" href="https://wa.me/message/A2PVWYE7Z7DJF1" target="_blank" rel="noreferrer">
+          <span class="social-icon">📱</span>WhatsApp
+        </a>
+        <span class="dot">•</span>
+        <a id="linkFacebook" class="topbar-link" href="https://www.facebook.com/profile.php?id=61586246738322" target="_blank" rel="noreferrer">
+          <span class="social-icon">📘</span>Facebook Page
+        </a>
+        <span class="dot">•</span>
+        <a id="linkInstagram" class="topbar-link" href="https://www.instagram.com/cartivabd/?hl=en" target="_blank" rel="noreferrer">
+          <span class="social-icon">📷</span>Instagram
+        </a>
+        <span class="dot">•</span>
+        <a id="linkTikTok" class="topbar-link" href="#" target="_blank" rel="noreferrer">
+          <span class="social-icon">🎵</span>TikTok
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <header class="header">
+    <div class="container header-inner">
+      <a class="logo" href="index.html" aria-label="Cartiva Home">
+        <div class="logo-badge">C</div>
+        <div class="logo-title">Cartiva</div>
+      </a>
+      <nav class="nav">
+        <a class="pill" href="index.html">Shop</a>
+        <a class="pill" href="cart.html">Cart <span class="badge" id="cartCount">0</span></a>
+        <a class="pill" href="checkout.html">Checkout</a>
+        <a class="pill" id="authPill" href="login.html" style="display:none">Login</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container" style="padding:18px 0 28px">
+    <div class="cart-layout">
+      <section class="panel">
+        <div class="controls" style="margin-bottom:4px">
+          <div>
+            <h2 style="margin:0 0 6px; font-size:22px">Your Cart</h2>
+            <div class="note" id="cartHint">Add products from the shop.</div>
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center">
+            <button class="btn secondary" id="btnClear" type="button">Clear cart</button>
+            <a class="btn" id="btnContinue" href="index.html" style="text-decoration:none">Continue shopping</a>
+          </div>
+        </div>
+
+        <div id="cartItems" style="margin-top:14px"></div>
+
+        <div style="margin-top:14px" class="small">Tip: Totals include demo shipping.</div>
+      </section>
+
+      <aside class="panel">
+        <h3 style="margin:0 0 10px">Order Summary</h3>
+        <div class="totals" id="totals">
+          <div class="total-line"><span>Subtotal</span><strong id="tSubtotal">$0.00</strong></div>
+          <div class="total-line"><span>Shipping</span><strong id="tShipping">$0.00</strong></div>
+          <div class="hr"></div>
+          <div class="total-line"><span>Total</span><strong id="tTotal">$0.00</strong></div>
+        </div>
+
+        <div style="margin-top:14px; display:flex; flex-direction:column; gap:10px">
+          <a class="btn" id="btnCheckout" href="checkout.html" style="text-decoration:none; text-align:center; display:block;" aria-disabled="true">Go to checkout</a>
+          <button class="btn secondary" id="btnRefresh" type="button">Refresh</button>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <script src="js/app.js"></script>
+  <script>
+    window.CartivaApiBase = window.CartivaApiBase || 'http://localhost:3000';
+  </script>
+  <script>
+    const toast = document.getElementById('toast');
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => toast.classList.remove('show'), 1500);
+    }
+
+    const cartItemsEl = document.getElementById('cartItems');
+    const cartHint = document.getElementById('cartHint');
+
+    const btnClear = document.getElementById('btnClear');
+    btnClear.addEventListener('click', () => {
+      window.CartivaCart.clearCart();
+      showToast('Cart cleared');
+      render();
+    });
+
+    document.getElementById('btnRefresh').addEventListener('click', render);
+
+    function qtyControlHTML({ product, qty }) {
+      const minusDisabled = qty <= 1 ? 'disabled' : '';
+      const stock = product.stock || 'in-stock';
+      const stockColor = stock === 'in-stock' ? '#22c55e' : stock === 'out-of-stock' ? '#ef4444' : '#f59e0b';
+      const stockBg = stock === 'in-stock' ? 'rgba(34, 197, 94, 0.15)' : stock === 'out-of-stock' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)';
+      const stockLabel = stock.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      const hasDiscount = product.originalPrice && product.originalPrice > product.price;
+      const originalPriceHtml = hasDiscount ? `<div class="small" style="text-decoration:line-through; color:var(--muted)">${window.CartivaCart.formatMoney(product.originalPrice)}</div>` : '';
+
+      return `
+        <div class="cart-item" data-row="${product.id}">
+          <img alt="${escapeHtml(product.name)}" src="${product.image || ''}" />
+          <div style="flex:1">
+            <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start">
+              <h3 style="margin:0">${escapeHtml(product.name)}</h3>
+              <div style="padding:4px 8px; border-radius:6px; font-size:11px; font-weight:700; background:${stockBg}; color:${stockColor}; white-space:nowrap">${escapeHtml(stockLabel)}</div>
+            </div>
+            <div class="meta">${escapeHtml(product.category)} • ${originalPriceHtml}${window.CartivaCart.formatMoney(product.price)} each</div>
+
+            <div class="qty-row">
+              <button class="btn2" type="button" data-action="dec" data-id="${product.id}" ${minusDisabled}>-</button>
+              <div class="qty" id="qty-${product.id}">${qty}</div>
+              <button class="btn2" type="button" data-action="inc" data-id="${product.id}">+</button>
+              <div style="flex:1"></div>
+              <div style="min-width:120px; text-align:right">
+                <div class="small">Line total</div>
+                <div style="font-weight:900" id="line-${product.id}">${window.CartivaCart.formatMoney(product.price * qty)}</div>
+              </div>
+            </div>
+
+            <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap">
+              <button class="btn secondary" type="button" data-action="remove" data-id="${product.id}">Remove</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function render() {
+      const detailed = window.CartivaCart.getCartDetailed();
+      const count = window.CartivaCart.getCartCount();
+      document.getElementById('cartCount').textContent = String(count);
+
+      const btnCheckout = document.getElementById('btnCheckout');
+      const hasItems = count > 0;
+      btnCheckout.setAttribute('aria-disabled', hasItems ? 'false' : 'true');
+      btnCheckout.style.opacity = hasItems ? '1' : '.55';
+      btnCheckout.style.pointerEvents = hasItems ? 'auto' : 'none';
+
+      btnClear.disabled = !hasItems;
+      btnClear.style.opacity = hasItems ? '1' : '.6';
+      cartHint.textContent = hasItems ? 'Adjust quantity, then proceed to checkout.' : 'Add products from the shop.';
+
+      if (!hasItems) {
+        cartItemsEl.innerHTML = '<div class="note">Your cart is empty.</div>';
+      } else {
+        cartItemsEl.innerHTML = detailed.map(item => qtyControlHTML(item)).join('');
+
+        for (const decBtn of cartItemsEl.querySelectorAll('[data-action="dec"]')) {
+          decBtn.addEventListener('click', () => {
+            const id = decBtn.getAttribute('data-id');
+            const current = window.CartivaCart.getCartDetailed().find(x => x.product.id === id);
+            const newQty = Math.max(0, (current?.qty || 0) - 1);
+            window.CartivaCart.setQty(id, newQty);
+            render();
+          });
+        }
+
+        for (const incBtn of cartItemsEl.querySelectorAll('[data-action="inc"]')) {
+          incBtn.addEventListener('click', () => {
+            const id = incBtn.getAttribute('data-id');
+            const current = window.CartivaCart.getCartDetailed().find(x => x.product.id === id);
+            const newQty = (current?.qty || 0) + 1;
+            window.CartivaCart.setQty(id, newQty);
+            render();
+          });
+        }
+
+        for (const rmBtn of cartItemsEl.querySelectorAll('[data-action="remove"]')) {
+          rmBtn.addEventListener('click', () => {
+            const id = rmBtn.getAttribute('data-id');
+            window.CartivaCart.removeFromCart(id);
+            showToast('Removed');
+            render();
+          });
+        }
+      }
+
+      const totals = window.CartivaCart.getTotals();
+      document.getElementById('tSubtotal').textContent = window.CartivaCart.formatMoney(totals.subtotal);
+      document.getElementById('tShipping').textContent = window.CartivaCart.formatMoney(totals.shipping);
+      document.getElementById('tTotal').textContent = window.CartivaCart.formatMoney(totals.total);
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '<')
+        .replaceAll('>', '>')
+        .replaceAll('"', '"')
+        .replaceAll("'", '&#039;');
+    }
+
+    window.addEventListener('cartiva:cartChanged', render);
+
+    function syncAuthPill(){
+      try{
+        const pill=document.getElementById('authPill');
+        if(!pill || !window.UserAuth) return;
+        const u=window.UserAuth.getCurrentUser();
+        if(u){
+          pill.textContent='Logout ('+u.email+')';
+          pill.href='#';
+          pill.style.display='inline-flex';
+          pill.addEventListener('click',(e)=>{
+            e.preventDefault();
+            window.UserAuth.logout();
+            syncAuthPill();
+            showToast('Logged out');
+          },{once:true});
+        } else {
+          pill.textContent='Login';
+          pill.href='login.html';
+          pill.style.display='none';
+        }
+      }catch{}
+    }
+
+    render();
+    syncAuthPill();
+  </script>
+</body>
+</html>
+
