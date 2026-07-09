@@ -251,7 +251,7 @@ app.get('/api/admin/orders', authAdmin, async (req, res) => {
 });
 
 // ===== DB bootstrap =====
-(async function main() {
+async function startServer() {
   try {
     const mongoUri = process.env.MONGODB_URI;
     if (!mongoUri) {
@@ -271,5 +271,12 @@ app.get('/api/admin/orders', authAdmin, async (req, res) => {
     console.error('Failed to start server', e);
     process.exit(1);
   }
-})();
+}
+
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = app;
+module.exports.startServer = startServer;
 
