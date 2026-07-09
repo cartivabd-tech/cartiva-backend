@@ -39,7 +39,7 @@ async function ensureAdmin() {
 
 // Root route (Vercel home endpoint)
 app.get('/', (req, res) => {
-  res.json({ message: 'Cartiva Backend Server is Running Perfectly!' });
+  res.send('Cartiva Backend Server is Running Perfectly!');
 });
 
 app.get('/api/health', (req, res) => {
@@ -123,7 +123,7 @@ app.get('/api/store', async (req, res) => {
       id: p.id,
       name: p.name,
       price: p.price,
-      originalPrice: p.originalPrice,
+      originalPrice: p.originalPrice === null || p.originalPrice === undefined || p.originalPrice === '' ? null : p.originalPrice,
       stock: p.stock,
       deliveryOption: p.deliveryOption,
       category: p.category,
