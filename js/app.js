@@ -164,7 +164,7 @@
     // Render API base URL should be set globally like:
     //   window.CartivaApiBase = 'https://your-backend.onrender.com'
     // You can also override by setting window.CartivaApiBase in each HTML.
-    return window.CartivaApiBase || 'http://localhost:3000';
+    return window.CartivaApiBase || 'https://cartiva-backend.vercel.app';
   }
 
   async function register(email, password) {
