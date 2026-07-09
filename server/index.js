@@ -37,6 +37,11 @@ async function ensureAdmin() {
   }
 }
 
+// Root route (Vercel home endpoint)
+app.get('/', (req, res) => {
+  res.json({ message: 'Cartiva Backend Server is Running Perfectly!' });
+});
+
 app.get('/api/health', (req, res) => {
   res.json({ ok: true });
 });
