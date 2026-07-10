@@ -255,7 +255,10 @@ app.post('/api/orders', authCustomer, async (req, res) => {
     const items = Array.isArray(b.items) ? b.items : [];
     if (!items.length) return res.status(400).json({ error: 'No items' });
 
+    const generatedOrderId = `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
+
     const order = await Order.create({
+      orderId: String(b.orderId || generatedOrderId),
       customerEmail: req.user.email,
       customer: {
         fullName: String(b.customer?.fullName || '').trim(),
@@ -279,6 +282,7 @@ app.post('/api/orders', authCustomer, async (req, res) => {
         price: Number(it.price || 0),
         qty: Number(it.qty || 0),
       })),
+      status: String(b.status || 'pending'),
     });
 
     res.json({ ok: true, orderId: order.orderId });

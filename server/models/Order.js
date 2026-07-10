@@ -1,94 +1,59 @@
-// অর্ডার সাবমিট করার রিয়েল-টাইম এপিআই হ্যান্ডলিং লজিক (স্কিমা অনুযায়ী ফিক্সড)
-    document.getElementById('checkoutForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      if(currentCart.length === 0) {
-        showToast('Your cart is empty! Add products first.');
-        return;
-      }
+const mongoose = require('mongoose');
 
-      const selectedOption = deliverySelect.options[deliverySelect.selectedIndex];
-      const shippingCost = Number(selectedOption.getAttribute('data-cost') || 60);
-      const deliveryLocText = selectedOption.text;
-      
-      let subtotal = 0;
-      const parsedItems = currentCart.map(item => {
-        const itemId = item.id || item.productId;
-        const p = liveProducts.find(x => (x.id === itemId || x._id === itemId)) || item;
-        subtotal += Number(p.price || 0) * Number(item.qty || item.quantity || 1);
-        return {
-          productId: itemId,
-          name: p.name,
-          price: Number(p.price),
-          qty: Number(item.qty || item.quantity || 1)
-        };
-      });
+// OrderId generator is kept in the backend (server/index.js) where needed.
+// This schema validates the checkout -> /api/orders payload.
 
-      const userEmail = document.getElementById('email').value;
+const OrderItemSchema = new mongoose.Schema(
+  {
+    productId: { type: String, required: true },
+    name: { type: String, required: true },
+    price: { type: Number, required: true },
+    qty: { type: Number, required: true },
+  },
+  { _id: false }
+);
 
-      // আপনার order.js মঙ্গুস স্কিমার সাথে ১০০% সিঙ্ক করা পেলোড
-      const orderPayload = {
-        customerEmail: userEmail, // required ফিল্ড ম্যাচ করা হলো
-        customer: {
-          fullName: document.getElementById('fullName').value, // name -> fullName
-          phone: document.getElementById('phone').value,
-          email: userEmail,
-          address: document.getElementById('address').value,
-          city: document.getElementById('city').value,
-          postal: document.getElementById('postalCode').value // postalCode -> postal
-        },
-        payment: document.getElementById('paymentMethod').value, // paymentMethod -> payment
-        deliveryLocation: deliveryLocText,
-        deliveryCharge: shippingCost,
-        totals: { // রুট লেভেল থেকে totals অবজেক্টের ভেতরে নেওয়া হলো
-          subtotal: subtotal,
-          delivery: shippingCost,
-          total: subtotal + shippingCost
-        },
-        items: parsedItems
-      };
+const CustomerSchema = new mongoose.Schema(
+  {
+    fullName: { type: String, default: '' },
+    phone: { type: String, default: '' },
+    email: { type: String, default: '' },
+    address: { type: String, default: '' },
+    city: { type: String, default: '' },
+    postal: { type: String, default: '' },
+  },
+  { _id: false }
+);
 
-      try {
-        showToast('Processing order...');
-        
-        const targetApiUrl = window.CartivaApiBase.endsWith('/') 
-          ? window.CartivaApiBase + 'api/orders' 
-          : window.CartivaApiBase + '/api/orders';
+const TotalsSchema = new mongoose.Schema(
+  {
+    subtotal: { type: Number, default: 0 },
+    delivery: { type: Number, default: 0 },
+    total: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
 
-        const res = await fetch(targetApiUrl, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          mode: 'cors',
-          body: JSON.stringify(orderPayload)
-        });
+const OrderSchema = new mongoose.Schema(
+  {
+    // For admin display; client may also send it.
+    orderId: { type: String, required: true, unique: true, index: true },
 
-        const data = await res.json();
+    customerEmail: { type: String, required: true, index: true },
+    customer: { type: CustomerSchema, default: () => ({}) },
 
-        if(res.ok || res.status === 201) {
-          showToast('Order placed successfully!');
-          clearLocalCart();
-          setTimeout(() => {
-            alert(`Order Successful!\nYour Order ID: ${data.orderId || (data.order && data.order.orderId) || 'ORD-SUCCESS'}`);
-            window.location.href = 'index.html';
-          }, 800);
-        } else {
-          console.error("Server validation failed:", data);
-          showToast(data.message || 'Server rejected the order.');
-        }
-      } catch(err) {
-        console.error("Network or MongoDB connection dropped.", err);
-        showToast('Network error, trying again...');
-      }
-    });
+    payment: { type: String, default: '' },
+    deliveryLocation: { type: String, default: '' },
+    deliveryCharge: { type: Number, default: 0 },
 
-    function clearLocalCart() {
-      if (window.CartivaCart && typeof window.CartivaCart.clearCart === 'function') {
-        window.CartivaCart.clearCart();
-      } else {
-        localStorage.removeItem('cartiva_cart_v1');
-        window.dispatchEvent(new CustomEvent('cartiva:cartChanged'));
-      }
-    }
+    totals: { type: TotalsSchema, default: () => ({}) },
+
+    items: { type: [OrderItemSchema], required: true, validate: v => Array.isArray(v) && v.length > 0 },
+
+    status: { type: String, default: 'pending' },
+  },
+  { timestamps: true }
+);
+
+module.exports = mongoose.model('Order', OrderSchema);
+
