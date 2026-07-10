@@ -273,7 +273,7 @@
           return;
         }
       } catch(err) {
-        console.warn("Backend API endpoint not responding. Triggering client backup registry.");
+        console.error(err);
       }
 
       // এপিআই সার্ভার অফলাইন বা ক্র্যাশ থাকলেও অর্ডার সেভ করার বুলেটপ্রুফ লোকাল ফলব্যাক
