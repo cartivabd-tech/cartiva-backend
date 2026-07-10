@@ -1,513 +1,358 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cartiva Admin</title>
-  <link rel="stylesheet" href="css/style.css" />
-  <style>
-    .admin-wrap{ padding:18px 0 28px; }
-    .admin-grid{ display:grid; grid-template-columns: 1fr; gap:14px; }
-    @media (min-width: 980px){ .admin-grid{ grid-template-columns: 1fr 1fr; } }
-    textarea.input{ min-height: 110px; resize: vertical; }
-    .admin-actions{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-    .password-field{ position: relative; }
-    .password-field input{ padding-right: 42px; }
-    .password-field button.password-toggle{
-      position: absolute; top: 50%; right: 10px; transform: translateY(-50%);
-      border: none; background: transparent; color: var(--text); font-size: 16px; cursor: pointer; padding: 4px;
-    }
-    .table{ width:100%; border-collapse: collapse; overflow:hidden; border-radius:14px; }
-    .table th, .table td{ padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08); text-align:left; vertical-align:top; }
-    .table th{ color:#fff; font-weight:950; background: rgba(255,255,255,0.03); }
-    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
-    .muted2{ color: var(--muted); }
-    .cloud-status { padding: 10px; border-radius: 8px; margin-bottom: 12px; font-weight: bold; background: rgba(255,255,255,0.05); text-align: center;}
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cartiva Admin</title>
+    <style>
+        :root {
+            --bg-color: #0a1128;
+            --card-bg: #1c2541;
+            --text-color: #ffffff;
+            --accent-color: #00b4d8;
+            --success-color: #2a9d8f;
+            --error-color: #e63946;
+        }
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+        .header {
+            background-color: var(--card-bg);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #3a506b;
+        }
+        .status-banner {
+            padding: 12px;
+            text-align: center;
+            font-weight: bold;
+            margin: 15px 30px;
+            border-radius: 6px;
+        }
+        .status-banner.success { background-color: var(--success-color); }
+        .status-banner.error { background-color: var(--error-color); }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 0 30px 30px 30px;
+        }
+        .card {
+            background-color: var(--card-bg);
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        h2 { margin-top: 0; color: var(--accent-color); border-bottom: 1px solid #3a506b; padding-bottom: 10px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-size: 0.9em; color: #cbd5e1; }
+        input, select, textarea {
+            width: 100%; padding: 10px; box-sizing: border-box;
+            background-color: #0b0c10; border: 1px solid #45f3ff33;
+            color: white; border-radius: 4px; outline: none;
+        }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        button {
+            background-color: var(--accent-color); color: white; border: none;
+            padding: 12px 20px; border-radius: 4px; cursor: pointer; font-weight: bold;
+        }
+        button:hover { opacity: 0.9; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #3a506b; }
+        th { background-color: #0b0c10; color: var(--accent-color); }
+        .badge { background: var(--success-color); padding: 3px 8px; border-radius: 4px; font-size: 0.8em; }
+        .status-pill { padding: 4px 8px; border-radius: 20px; font-size: 0.85em; font-weight: bold; text-transform: capitalize; }
+        .status-pending { background-color: #f4a261; color: black; }
+        .btn-delete { background-color: var(--error-color); padding: 5px 10px; font-size: 0.85em; }
+        .btn-edit { background-color: #f4a261; padding: 5px 10px; font-size: 0.85em; margin-right: 5px; color: black; }
+    </style>
 </head>
 <body>
-  <div class="toast" id="toast"></div>
 
-  <div class="topbar">
-    <div class="container topbar-inner">
-      <div class="store"><div class="store-name">Cartiva Admin</div></div>
-      <div class="topbar-links">
-        <a id="linkWhatsApp" class="topbar-link" href="#" target="_blank" rel="noreferrer"><span class="social-icon">📱</span>WhatsApp</a>
-        <span class="dot">•</span>
-        <a id="linkFacebook" class="topbar-link" href="#" target="_blank" rel="noreferrer"><span class="social-icon">📘</span>Facebook Page</a>
-        <span class="dot">•</span>
-        <a id="linkInstagram" class="topbar-link" href="#" target="_blank" rel="noreferrer"><span class="social-icon">📷</span>Instagram</a>
-        <span class="dot">•</span>
-        <a id="linkTikTok" class="topbar-link" href="#" target="_blank" rel="noreferrer"><span class="social-icon">🎵</span>TikTok</a>
-      </div>
+    <div class="header">
+        <h1>Cartiva Admin Panel</h1>
+        <div>
+            <button id="refreshOrdersBtn" style="margin-right: 10px; background-color: var(--success-color);">Refresh Orders</button>
+            <button id="logoutBtn" style="background-color: var(--error-color);">Logout</button>
+        </div>
     </div>
-  </div>
 
-  <header class="header">
-    <div class="container header-inner">
-      <a class="logo" href="index.html">
-        <div class="logo-badge">C</div>
-        <div class="logo-title">Cartiva</div>
-      </a>
-      <nav class="nav">
-        <a class="pill" href="index.html">Shop</a>
-        <a class="pill" href="cart.html">Cart</a>
-        <a class="pill" href="checkout.html">Checkout</a>
-      </nav>
+    <div id="syncStatus" class="status-banner error">❌ Checking Cloud Sync...</div>
+
+    <div class="container">
+        <div class="card">
+            <h2>Product Manager</h2>
+            <form id="productForm">
+                <div class="form-group">
+                    <label>Product ID (unique)</label>
+                    <input type="text" id="prodId" required placeholder="e.g., p1">
+                </div>
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="prodName" required placeholder="Product Name">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Original Price</label>
+                        <input type="number" id="prodOriginalPrice" step="0.01" placeholder="16.99">
+                    </div>
+                    <div class="form-group">
+                        <label>Discount Price</label>
+                        <input type="number" id="prodPrice" step="0.01" required placeholder="12.99">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Stock Status</label>
+                        <select id="prodStock">
+                            <option value="In Stock">In Stock</option>
+                            <option value="Out of Stock">Out of Stock</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Delivery Option</label>
+                        <select id="prodDelivery">
+                            <option value="Delivery Include">Delivery Include</option>
+                            <option value="Delivery Charge Extra">Delivery Charge Extra</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="prodCategory">
+                        <option value="HeadPhone">HeadPhone</option>
+                        <option value="Watch">Watch</option>
+                        <option value="Gadget">Gadget</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="prodDesc" rows="3" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Main Image URL</label>
+                    <input type="text" id="prodImage" placeholder="https://...">
+                </div>
+                <div class="form-group">
+                    <label>Gallery Image URLs (Comma separated)</label>
+                    <input type="text" id="prodImages" placeholder="url1, url2, url3">
+                </div>
+                <button type="submit" style="width: 100%;">Save Product</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Orders List</h2>
+            <div style="max-height: 300px; overflow-y: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Customer</th>
+                            <th>Total</th>
+                            <th>Items</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordersTableBody">
+                        <tr><td colspan="5" style="text-align:center;">Loading orders...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h2 style="margin-top: 30px;">Existing Live Products</h2>
+            <div style="max-height: 300px; overflow-y: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Price</th>
+                            <th>Stock</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productsTableBody">
+                        <tr><td colspan="5" style="text-align:center;">Loading products...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
-  </header>
 
-  <main class="container admin-wrap">
-    <div id="cloudStatus" class="cloud-status" style="color: #f59e0b;">☁️ Connecting to Live Cloud Database...</div>
+    <script>
+        // ===== CONFIGURATION =====
+        const API_URL = 'https://cartiva-backend.vercel.app/api'; 
+        let localProducts = [];
 
-    <section class="panel" id="loginSection">
-      <h2 style="margin:0 0 10px; font-size:22px">Admin Login</h2>
-      <form id="loginForm" novalidate>
-        <div class="form-grid">
-          <div class="field">
-            <div class="label">Admin username</div>
-            <input class="input" id="adminUser" placeholder="admin" required />
-          </div>
-          <div class="field password-field">
-            <div class="label">Admin password</div>
-            <input class="input" id="adminPass" type="password" placeholder="123" required />
-            <button type="button" class="password-toggle" id="btnToggleLoginPassword">👁️</button>
-          </div>
-        </div>
-        <div class="admin-actions" style="margin-top:12px">
-          <button class="btn" type="submit">Login</button>
-        </div>
-      </form>
-    </section>
+        const syncStatus = document.getElementById('syncStatus');
+        const productForm = document.getElementById('productForm');
+        const productsTableBody = document.getElementById('productsTableBody');
+        const ordersTableBody = document.getElementById('ordersTableBody');
+        const refreshOrdersBtn = document.getElementById('refreshOrdersBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
 
-    <section id="adminPanel" class="panel" style="display:none; margin-top:14px">
-      <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:flex-start">
-        <div>
-          <h2 style="margin:0 0 8px; font-size:22px">Product Manager</h2>
-          <div class="note" style="margin:0">অ্যাডমিন প্যানেলে যেকোনো পরিবর্তন এখন সরাসরি অনলাইন ক্লাউডে অটো-সেভ হয়ে যাবে!</div>
-        </div>
-        <div class="admin-actions">
-          <a class="btn secondary" href="index.html">View Shop</a>
-          <button class="btn secondary" type="button" id="btnLogout">Logout</button>
-        </div>
-      </div>
+        function getAdminToken() { return localStorage.getItem('adminToken'); }
 
-      <div class="admin-grid" style="margin-top:14px">
-        <div>
-          <div class="field"><div class="label">Product ID (unique)</div><input class="input mono" id="pId" placeholder="p1" required /></div>
-          <div class="field"><div class="label">Name</div><input class="input" id="pName" placeholder="Product name" required /></div>
-          <div class="form-grid">
-            <div class="field"><div class="label">Original Price</div><input class="input" id="pOriginalPrice" placeholder="15.99" /></div>
-            <div class="field"><div class="label">Discount Price</div><input class="input" id="pPrice" placeholder="12.99" required /></div>
-          </div>
-          <div class="form-grid">
-            <div class="field">
-              <div class="label">Stock Status</div>
-              <select class="input" id="pStock" required>
-                <option value="in-stock">In Stock</option>
-                <option value="out-of-stock">Out of Stock</option>
-                <option value="upcoming">Upcoming</option>
-              </select>
-            </div>
-            <div class="field">
-              <div class="label">Delivery Option</div>
-              <select class="input" id="pDeliveryOption" required>
-                <option value="delivery-included">Delivery Include</option>
-                <option value="free-delivery">Free delivery</option>
-              </select>
-            </div>
-          </div>
-          <div class="field">
-            <div class="label">Category</div>
-            <select class="input" id="pCategory" required>
-              <option value="HeadPhone">HeadPhone</option>
-              <option value="TWS">TWS</option>
-              <option value="SmartWatch">SmartWatch</option>
-              <option value="Fashion">Fashion</option>
-              <option value="Beauty products">Beauty products</option>
-              <option value="Health care">Health care</option>
-              <option value="Home decor">Home decor</option>
-            </select>
-          </div>
-          <div class="field"><div class="label">Description</div><textarea class="input" id="pDesc" placeholder="Short description" required></textarea></div>
-          <div class="field">
-            <div class="label">Product photos (URLs, one per line)</div>
-            <textarea class="input" id="pImages" placeholder="https://..." rows="3"></textarea>
-          </div>
-
-          <div class="admin-actions" style="margin-top:12px">
-            <button class="btn" type="button" id="btnSave">Save & Upload Product</button>
-            <button class="btn secondary" type="button" id="btnClearForm">Clear Form</button>
-          </div>
-
-          <div class="panel" style="margin-top:20px; background:rgba(0,0,0,0.2)">
-            <h3>Website Global Settings</h3>
-            <div class="field"><div class="label">Logo Image URL</div><input class="input" id="logoUrl" placeholder="https://..." /></div>
-            <div class="field"><div class="label">WhatsApp URL</div><input class="input" id="waUrl" placeholder="https://wa.me/..." /></div>
-            <div class="field"><div class="label">Facebook URL</div><input class="input" id="fbUrl" placeholder="https://facebook.com/..." /></div>
-            <div class="field"><div class="label">Instagram URL</div><input class="input" id="igUrl" placeholder="https://instagram.com/..." /></div>
-            <div class="field"><div class="label">TikTok URL</div><input class="input" id="tiktokUrl" placeholder="https://tiktok.com/@..." /></div>
-            <button class="btn" type="button" id="btnSaveSettings" style="margin-top:10px">Save Global Settings</button>
-          </div>
-        </div>
-
-        <div>
-          <h3>Orders</h3>
-          <div style="margin-top:10px; overflow:auto; max-height:260px">
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px">
-              <button class="btn secondary" type="button" id="btnRefreshOrders" style="padding:6px 12px; font-size:12px">Refresh Orders</button>
-              <div id="ordersStatus" style="color:var(--muted); font-size:12px">Loading...</div>
-            </div>
-            <table class="table">
-              <thead>
-                <tr><th>Order ID</th><th>Customer</th><th>Total</th><th>Items</th></tr>
-              </thead>
-              <tbody id="ordersTableBody"></tbody>
-            </table>
-          </div>
-          <div style="color:var(--muted); font-size:12px; margin-top:8px">Shows last 100 orders</div>
-
-          <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin:16px 0;" />
-
-          <h3>Existing Live Products</h3>
-          <div style="margin-top:10px; overflow:auto; max-height:500px">
-            <table class="table">
-              <thead>
-                <tr><th>ID</th><th>Name</th><th>Price</th><th>Stock</th><th>Actions</th></tr>
-              </thead>
-              <tbody id="productsTableBody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <script src="data/products.js"></script>
-  <script>
-    (function () {
-      const API_URL = '/api'; 
-      
-      let globalStore = {
-        products: [],
-        settings: { logoUrl: '', waUrl: '', fbUrl: '', igUrl: '', tikTokUrl: '' }
-      };
-
-      const toast = document.getElementById('toast');
-      function showToast(msg) {
-        toast.textContent = msg; toast.classList.add('show');
-        clearTimeout(showToast._t); showToast._t = setTimeout(() => toast.classList.remove('show'), 1500);
-      }
-
-      async function fetchCloudData() {
-        const cloudStatus = document.getElementById('cloudStatus');
-        if (cloudStatus) {
-          cloudStatus.innerHTML = '🔄 Syncing with Cloud...';
-          cloudStatus.style.color = '#f59e0b';
-          cloudStatus.style.display = 'block';
+        function checkAuth() {
+            const token = getAdminToken();
+            if (!token) { window.location.href = '/login.html'; }
         }
 
-        try {
-          const res = await fetch(API_URL + '/store');
-          const data = await res.json();
-          globalStore.products = data.products || [];
-          globalStore.settings = data.settings || globalStore.settings;
-          
-          if (cloudStatus) {
-            cloudStatus.innerHTML = '✅ Cloud Synced Successfully.';
-            cloudStatus.style.color = '#22c55e';
-            cloudStatus.style.display = 'block';
-            setTimeout(() => {
-              if (cloudStatus) cloudStatus.style.display = 'none';
-            }, 2000);
-          }
-          
-          applyGlobalUI();
-          renderProductsTable();
-        } catch (e) {
-          if (cloudStatus) {
-            cloudStatus.innerHTML = '❌ Cloud Sync Failed. Offline mode active.';
-            cloudStatus.style.color = '#ef4444';
-            cloudStatus.style.display = 'block';
-          }
-          if(window.CartivaProducts) globalStore.products = window.CartivaProducts;
-          renderProductsTable();
+        function setOnlineStatus(isOnline, message = '') {
+            if (isOnline) {
+                syncStatus.className = 'status-banner success';
+                syncStatus.innerHTML = '✅ Cloud Synced Successfully. Connected to Database.';
+            } else {
+                syncStatus.className = 'status-banner error';
+                syncStatus.innerHTML = `❌ Cloud Sync Failed. Offline mode active. ${message}`;
+            }
         }
-      }
 
-      async function saveProductToBackend(pData) {
-        const cloudStatusEl = document.getElementById('cloudStatus');
-        if (cloudStatusEl) {
-          cloudStatusEl.textContent = '⏳ Uploading changes to cloud...';
-          cloudStatusEl.style.color = '#f59e0b';
-          cloudStatusEl.style.display = 'block';
+        async function fetchStoreData() {
+            try {
+                const res = await fetch(`${API_URL}/store`);
+                if (!res.ok) throw new Error('Server error');
+                const data = await res.json();
+                localProducts = data.products || [];
+                renderProducts(localProducts);
+                setOnlineStatus(true);
+            } catch (err) {
+                console.error(err);
+                setOnlineStatus(false, '(Cannot connect to backend API)');
+            }
         }
-        
-        const token = localStorage.getItem('cartiva_admin_token') || ''; 
 
-        try {
-          const res = await fetch(API_URL + '/products', {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}` 
-            },
-            body: JSON.stringify(pData)
-          });
-          
-          if(!res.ok) throw new Error('Server error');
-
-          if (cloudStatusEl) {
-            cloudStatusEl.textContent = '⚡ Saved Successfully to MongoDB!';
-            cloudStatusEl.style.color = '#22c55e';
-          }
-          showToast('Product Synchronized Online!');
-          fetchCloudData(); 
-        } catch (e) {
-          showToast('Failed to sync changes with cloud.');
-          if (cloudStatusEl) {
-            cloudStatusEl.textContent = '❌ Upload failed. Ensure server config is correct.';
-            cloudStatusEl.style.color = '#ef4444';
-            cloudStatusEl.style.display = 'block';
-          }
+        function renderProducts(products) {
+            productsTableBody.innerHTML = '';
+            if (products.length === 0) {
+                productsTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No products found.</td></tr>';
+                return;
+            }
+            products.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${p.id}</strong></td>
+                    <td>${p.name}</td>
+                    <td>$${p.price}</td>
+                    <td><span class="badge">${p.stock || 'In Stock'}</span></td>
+                    <td>
+                        <button class="btn-edit" onclick="editProduct('${p.id}')">Edit</button>
+                        <button class="btn-delete" onclick="deleteProduct('${p.id}')">Delete</button>
+                    </td>
+                `;
+                productsTableBody.appendChild(tr);
+            });
         }
-      }
 
-      function applyGlobalUI() {
-        const s = globalStore.settings;
-        if(s.logoUrl) {
-          const b = document.querySelector('.logo-badge');
-          if(b) { b.style.backgroundImage = `url('${s.logoUrl}')`; b.style.backgroundSize='cover'; b.textContent=''; }
-        }
-        if(s.waUrl) document.getElementById('linkWhatsApp').href = s.waUrl;
-        if(s.fbUrl) document.getElementById('linkFacebook').href = s.fbUrl;
-        if(s.igUrl) document.getElementById('linkInstagram').href = s.igUrl;
-        if(s.tikTokUrl) document.getElementById('linkTikTok').href = s.tikTokUrl;
-        
-        document.getElementById('logoUrl').value = s.logoUrl || '';
-        document.getElementById('waUrl').value = s.waUrl || '';
-        document.getElementById('fbUrl').value = s.fbUrl || '';
-        document.getElementById('igUrl').value = s.igUrl || '';
-        document.getElementById('tiktokUrl').value = s.tikTokUrl || '';
-      }
+        productForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const token = getAdminToken();
+            if (!token) return alert('Session expired. Please login again.');
 
-      function renderProductsTable() {
-        const tbody = document.getElementById('productsTableBody');
-        tbody.innerHTML = globalStore.products.map(p => `
-          <tr>
-            <td class="mono">${p.id}</td>
-            <td><b>${p.name}</b></td>
-            <td>৳${p.price}</td>
-            <td><span style="color:${p.stock==='in-stock'?'#22c55e':'#ef4444'}">${p.stock}</span></td>
-            <td>
-              <button class="btn secondary" style="padding:4px 8px; font-size:12px" onclick="window.editProduct('${p.id}')">Edit</button>
-              <button class="btn secondary" style="padding:4px 8px; font-size:12px; background:#ef4444; color:#fff" onclick="window.deleteProduct('${p.id}')">Delete</button>
-            </td>
-          </tr>
-        `).join('');
-      }
+            const payload = {
+                id: document.getElementById('prodId').value.trim(),
+                name: document.getElementById('prodName').value.trim(),
+                price: parseFloat(document.getElementById('prodPrice').value),
+                originalPrice: document.getElementById('prodOriginalPrice').value ? parseFloat(document.getElementById('prodOriginalPrice').value) : null,
+                stock: document.getElementById('prodStock').value,
+                deliveryOption: document.getElementById('prodDelivery').value,
+                category: document.getElementById('prodCategory').value,
+                description: document.getElementById('prodDesc').value.trim(),
+                image: document.getElementById('prodImage').value.trim(),
+                images: document.getElementById('prodImages').value.split(',').map(s => s.trim()).filter(Boolean)
+            };
 
-      window.editProduct = function(id) {
-        const p = globalStore.products.find(x => x.id === id);
-        if(!p) return;
-        document.getElementById('pId').value = p.id;
-        document.getElementById('pId').disabled = true;
-        document.getElementById('pName').value = p.name;
-        document.getElementById('pOriginalPrice').value = p.originalPrice || '';
-        document.getElementById('pPrice').value = p.price;
-        document.getElementById('pStock').value = p.stock || 'in-stock';
-        document.getElementById('pDeliveryOption').value = p.deliveryOption || 'delivery-included';
-        document.getElementById('pCategory').value = p.category;
-        document.getElementById('pDesc').value = p.description;
-        document.getElementById('pImages').value = Array.isArray(p.images) ? p.images.join('\n') : (p.image ? p.image : '');
-      };
+            try {
+                const res = await fetch(`${API_URL}/products`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) throw new Error('Failed to save');
+                alert('Product saved successfully!');
+                productForm.reset();
+                fetchStoreData();
+            } catch (err) { alert(`Error: ${err.message}`); }
+        });
 
-      window.deleteProduct = async function(id) {
-        if(!confirm('Delete this product from server permanently?')) return;
-        try {
-          const token = localStorage.getItem('cartiva_admin_token') || '';
-          await fetch(`${API_URL}/products/${id}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          fetchCloudData();
-        } catch {
-          showToast('Failed to delete product');
-        }
-      };
-
-      document.getElementById('btnClearForm').addEventListener('click', () => {
-        document.getElementById('pId').disabled = false;
-        document.getElementById('pId').value = '';
-        document.getElementById('pName').value = '';
-        document.getElementById('pPrice').value = '';
-        document.getElementById('pOriginalPrice').value = '';
-        document.getElementById('pDesc').value = '';
-        document.getElementById('pImages').value = '';
-      });
-
-      document.getElementById('btnSave').addEventListener('click', async () => {
-        const id = document.getElementById('pId').value.trim();
-        const name = document.getElementById('pName').value.trim();
-        const price = parseFloat(document.getElementById('pPrice').value);
-        if(!id || !name || isNaN(price)) return alert('Please fill required fields.');
-
-        const imgs = document.getElementById('pImages').value.split('\n').map(x => x.trim()).filter(Boolean);
-
-        const pData = {
-          id, name, price,
-          originalPrice: parseFloat(document.getElementById('pOriginalPrice').value) || null,
-          stock: document.getElementById('pStock').value,
-          deliveryOption: document.getElementById('pDeliveryOption').value,
-          category: document.getElementById('pCategory').value,
-          description: document.getElementById('pDesc').value,
-          image: imgs[0] || 'https://via.placeholder.com/600x400',
-          images: imgs
+        window.editProduct = function(id) {
+            const p = localProducts.find(item => item.id === id);
+            if (!p) return alert('Product not found');
+            document.getElementById('prodId').value = p.id;
+            document.getElementById('prodName').value = p.name;
+            document.getElementById('prodPrice').value = p.price;
+            document.getElementById('prodOriginalPrice').value = p.originalPrice || '';
+            document.getElementById('prodStock').value = p.stock || 'In Stock';
+            document.getElementById('prodDesc').value = p.description || '';
+            document.getElementById('prodImage').value = p.image || '';
         };
 
-        await saveProductToBackend(pData);
-
-        document.getElementById('pId').disabled = false;
-        document.getElementById('pId').value = '';
-        document.getElementById('pName').value = '';
-        document.getElementById('pPrice').value = '';
-        document.getElementById('pOriginalPrice').value = '';
-        document.getElementById('pDesc').value = '';
-        document.getElementById('pImages').value = '';
-      });
-
-      document.getElementById('btnSaveSettings').addEventListener('click', async () => {
-        const sData = {
-          logoUrl: document.getElementById('logoUrl').value.trim(),
-          waUrl: document.getElementById('waUrl').value.trim(),
-          fbUrl: document.getElementById('fbUrl').value.trim(),
-          igUrl: document.getElementById('igUrl').value.trim(),
-          tikTokUrl: document.getElementById('tiktokUrl').value.trim()
+        window.deleteProduct = async function(id) {
+            if (!confirm(`Delete product ${id}?`)) return;
+            const token = getAdminToken();
+            try {
+                const res = await fetch(`${API_URL}/products/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!res.ok) throw new Error('Delete failed');
+                alert('Product deleted.');
+                fetchStoreData();
+            } catch (err) { alert(err.message); }
         };
-        
-        try {
-          const token = localStorage.getItem('cartiva_admin_token') || '';
-          await fetch(API_URL + '/settings', {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(sData)
-          });
-          showToast('Settings saved successfully!');
-          fetchCloudData();
-        } catch {
-          showToast('Failed to save settings');
+
+        async function fetchOrders() {
+            const token = getAdminToken();
+            if (!token) return;
+            try {
+                const res = await fetch(`${API_URL}/admin/orders`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                renderOrders(data.orders || []);
+            } catch (err) {
+                ordersTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:red;">Failed to load orders.</td></tr>`;
+            }
         }
-      });
 
-      const SESSION_STORAGE_KEY = 'cartiva_admin_session_v1';
-
-      function checkSession() {
-        try {
-          const active = localStorage.getItem(SESSION_STORAGE_KEY);
-          if (active === 'true') {
-            const loginSection = document.getElementById('loginSection');
-            const adminPanel = document.getElementById('adminPanel');
-            if (loginSection) loginSection.style.display = 'none';
-            if (adminPanel) adminPanel.style.display = 'block';
-          }
-        } catch {}
-      }
-
-      document.getElementById('loginForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const u = document.getElementById('adminUser').value.trim();
-        const p = document.getElementById('adminPass').value.trim();
-
-        try {
-          const res = await fetch(API_URL + '/admin/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: u, password: p })
-          });
-
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok || !data?.token) {
-            alert(data?.error || 'Invalid login credentials');
-            return;
-          }
-
-          localStorage.setItem('cartiva_admin_token', data.token);
-          localStorage.setItem(SESSION_STORAGE_KEY, 'true');
-          document.getElementById('loginSection').style.display = 'none';
-          document.getElementById('adminPanel').style.display = 'block';
-          showToast('Welcome Admin');
-          refreshOrders();
-        } catch (err) {
-          alert('Admin login failed (network error)');
+        function renderOrders(orders) {
+            ordersTableBody.innerHTML = '';
+            if (orders.length === 0) {
+                ordersTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No orders found.</td></tr>';
+                return;
+            }
+            orders.forEach(o => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${o.orderId || 'N/A'}</td>
+                    <td>${o.customer?.fullName || 'N/A'}</td>
+                    <td>$${o.totals?.total || 0}</td>
+                    <td>${o.items ? o.items.length : 0} items</td>
+                    <td><span class="status-pill status-pending">${o.status || 'Pending'}</span></td>
+                `;
+                ordersTableBody.appendChild(tr);
+            });
         }
-      });
 
-      document.getElementById('btnLogout').addEventListener('click', () => {
-        localStorage.removeItem(SESSION_STORAGE_KEY);
-        document.getElementById('adminPanel').style.display = 'none';
-        document.getElementById('loginSection').style.display = 'block';
-      });
+        refreshOrdersBtn.addEventListener('click', fetchOrders);
+        logoutBtn.addEventListener('click', () => {
+            localStorage.removeItem('adminToken');
+            window.location.href = '/login.html';
+        });
 
-      document.getElementById('btnToggleLoginPassword').addEventListener('click', () => {
-        const el = document.getElementById('adminPass');
-        el.type = el.type === 'password' ? 'text' : 'password';
-      });
-
-      async function fetchAdminOrders() {
-        try {
-          const token = localStorage.getItem('cartiva_admin_token') || '';
-          const res = await fetch('/api/admin/orders', {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-
-          if (!res.ok) return [];
-          const data = await res.json();
-          return data.orders || [];
-        } catch (e) {
-          return [];
-        }
-      }
-
-      function renderOrdersTable(orders) {
-        const tbody = document.getElementById('ordersTableBody');
-        if (!tbody) return;
-        tbody.innerHTML = (orders || []).map(o => {
-          const fullName = o?.customer?.fullName || '';
-          const total = (o?.totals?.total ?? 0);
-          const itemsCount = Array.isArray(o?.items) ? o.items.length : 0;
-          return `
-            <tr>
-              <td class="mono">${o.orderId || ''}</td>
-              <td>${fullName || (o.customerEmail || '')}</td>
-              <td>৳${total}</td>
-              <td>${itemsCount}</td>
-            </tr>
-          `;
-        }).join('');
-      }
-
-      async function refreshOrders() {
-        const statusEl = document.getElementById('ordersStatus');
-        try {
-          if (statusEl) statusEl.textContent = 'Loading orders...';
-          const orders = await fetchAdminOrders();
-          renderOrdersTable(orders);
-          if (statusEl) statusEl.textContent = `Orders: ${(orders || []).length}`;
-        } catch (e) {
-          if (statusEl) statusEl.textContent = 'Failed to load orders';
-        }
-      }
-
-      const btnRefresh = document.getElementById('btnRefreshOrders');
-      if (btnRefresh) btnRefresh.addEventListener('click', () => refreshOrders());
-
-      checkSession();
-      fetchCloudData();
-      refreshOrders();
-    })();
-  </script>
+        // Initialize
+        checkAuth();
+        fetchStoreData();
+        fetchOrders();
+    </script>
 </body>
 </html>
