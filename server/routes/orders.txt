@@ -1,0 +1,7 @@
+Use /api/admin/orders to return: { orders: [...] } where each order has:
+- orderId
+- customerEmail
+- customer.fullName
+- totals.total
+- items[]
+

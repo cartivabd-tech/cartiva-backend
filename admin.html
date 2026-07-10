@@ -152,6 +152,19 @@
         </div>
 
         <div>
+          <h3>Orders</h3>
+          <div style="margin-top:10px; overflow:auto; max-height:260px">
+            <table class="table">
+              <thead>
+                <tr><th>Order ID</th><th>Customer</th><th>Total</th><th>Items</th></tr>
+              </thead>
+              <tbody id="ordersTableBody"></tbody>
+            </table>
+          </div>
+          <div style="color:var(--muted); font-size:12px; margin-top:8px">Shows last 100 orders</div>
+
+          <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin:16px 0;" />
+
           <h3>Existing Live Products</h3>
           <div style="margin-top:10px; overflow:auto; max-height:500px">
             <table class="table">
@@ -395,9 +408,47 @@
         el.type = el.type === 'password' ? 'text' : 'password';
       });
 
+      async function fetchAdminOrders() {
+        try {
+          const token = localStorage.getItem('cartiva_admin_token') || '';
+          const res = await fetch(API_URL + '/admin/orders', {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!res.ok) return [];
+          const data = await res.json();
+          return data.orders || [];
+        } catch {
+          return [];
+        }
+      }
+
+      function renderOrdersTable(orders) {
+        const tbody = document.getElementById('ordersTableBody');
+        if (!tbody) return;
+        tbody.innerHTML = (orders || []).map(o => {
+          const fullName = o?.customer?.fullName || '';
+          const total = (o?.totals?.total ?? 0);
+          const itemsCount = Array.isArray(o?.items) ? o.items.length : 0;
+          return `
+            <tr>
+              <td class="mono">${o.orderId || ''}</td>
+              <td>${fullName || (o.customerEmail || '')}</td>
+              <td>৳${total}</td>
+              <td>${itemsCount}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      async function refreshOrders() {
+        const orders = await fetchAdminOrders();
+        renderOrdersTable(orders);
+      }
+
       // Init load
       checkSession();
       fetchCloudData();
+      refreshOrders();
     })();
   </script>
 </body>
