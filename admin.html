@@ -382,18 +382,32 @@
         } catch {}
       }
 
-      document.getElementById('loginForm').addEventListener('submit', (e) => {
+      document.getElementById('loginForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const u = document.getElementById('adminUser').value.trim();
         const p = document.getElementById('adminPass').value.trim();
-        
-        if (u === 'admin' && p === '123') {
+
+        try {
+          const res = await fetch(API_URL + '/admin/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: u, password: p })
+          });
+
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data?.token) {
+            alert(data?.error || 'Invalid login credentials');
+            return;
+          }
+
+          localStorage.setItem('cartiva_admin_token', data.token);
           localStorage.setItem(SESSION_STORAGE_KEY, 'true');
           document.getElementById('loginSection').style.display = 'none';
           document.getElementById('adminPanel').style.display = 'block';
           showToast('Welcome Admin');
-        } else {
-          alert('Invalid login credentials');
+          refreshOrders();
+        } catch (err) {
+          alert('Admin login failed (network error)');
         }
       });
 
