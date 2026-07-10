@@ -352,6 +352,23 @@
         }
       });
 
+      // --- Orders (Admin) ---
+      async function fetchAdminOrders() {
+        try {
+          const token = localStorage.getItem('cartiva_admin_token') || '';
+          const res = await fetch(API_URL + '/admin/orders', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (!res.ok) return [];
+          const data = await res.json();
+          return data.orders || [];
+        } catch {
+          return [];
+        }
+      }
+
+      // (Optional) render orders into toast-free minimal table if you add a UI placeholder later.
+
       document.getElementById('btnClearForm').addEventListener('click', () => {
         document.getElementById('pId').disabled = false;
       });

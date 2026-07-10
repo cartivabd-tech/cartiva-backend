@@ -259,11 +259,11 @@ app.post('/api/orders', authCustomer, async (req, res) => {
 
     const order = await Order.create({
       orderId: String(b.orderId || generatedOrderId),
-      customerEmail: req.user.email,
+      customerEmail: String(b.customerEmail || req.user.email),
       customer: {
         fullName: String(b.customer?.fullName || '').trim(),
         phone: String(b.customer?.phone || '').trim(),
-        email: String(b.customer?.email || req.user.email),
+        email: String(b.customer?.email || b.customerEmail || req.user.email),
         address: String(b.customer?.address || '').trim(),
         city: String(b.customer?.city || '').trim(),
         postal: String(b.customer?.postal || '').trim(),

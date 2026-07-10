@@ -231,6 +231,7 @@
       const generatedId = 'ORD-' + Math.floor(100000 + Math.random() * 900000);
 
       const orderPayload = {
+        orderId: generatedId,
         customerEmail: userEmail,
         customer: {
           fullName: document.getElementById('fullName').value,
@@ -248,9 +249,7 @@
           delivery: shippingCost,
           total: subtotal + shippingCost
         },
-        items: parsedItems,
-        orderId: generatedId,
-        status: 'pending'
+        items: parsedItems
       };
 
       try {
