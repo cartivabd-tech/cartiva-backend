@@ -3,6 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const path = require('path'); // পাথ হ্যান্ডেল করার জন্য নতুন যুক্ত করা হয়েছে
 
 const { authAdmin, authCustomer } = require('./middleware/auth');
 const Settings = require('./models/Settings');
@@ -16,6 +17,10 @@ const bcrypt = require('bcryptjs');
 
 const app = express();
 app.use(express.json({ limit: '2mb' }));
+
+// ফ্রন্টএন্ড বা অ্যাডমিন প্যানেলের স্ট্যাটিক ফাইলগুলো (HTML, CSS, JS) সার্ভ করার জন্য
+// আপনার admin.html বা index.html যদি রুট ফোল্ডারেই থাকে, তবে এটি কাজ করবে
+app.use(express.static(__dirname));
 
 function buildCorsOptions(req, callback) {
   // Allow multiple origins: ORIGIN="https://a.com,https://b.com"
@@ -89,7 +94,7 @@ async function ensureAdmin() {
   }
 }
 
-// Vercel-এর প্রত্যেকটি রিকোয়েস্টে যেন ডাটাবেজ কানেক্টেড থাকে তা নিশ্চিত করা
+// Vercel-এর প্রত্যেকটি রিকোয়েস্টে যেন ডাটাবেজ কানেক্টেড থাকে তা নিশ্চিত করা
 app.use(async (req, res, next) => {
   try {
     await connectToDatabase();
@@ -333,19 +338,12 @@ app.get('/api/admin/orders', authAdmin, async (req, res) => {
   }
 });
 
-// লোকাল ডেভেলপমেন্টের জন্য পোর্ট লিসেনার অন রাখা হলো
-// NOTE: Do NOT rely on this block for database initialization.
-// In serverless environments (e.g. Vercel), this file is imported/handled
-// without executing require.main === module.
-// Warm up the database connection for serverless invocations too.
-// Keep this non-blocking: Vercel will still retry per-request via app.use middleware.
+// লোকাল ডেভেলপমেন্ট এবং ক্লাউড ওয়ার্মআপের জন্য
 if (process.env.MONGODB_URI) {
-  connectToDatabase().catch(() => {
-    // Swallow warmup errors; app-level middleware will surface real errors per-request.
-  });
+  connectToDatabase().catch(() => {});
 }
 
-// Local development only
+// Standalone Local development server listener
 if (require.main === module) {
   app.listen(PORT, async () => {
     try {
