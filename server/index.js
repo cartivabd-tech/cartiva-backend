@@ -26,19 +26,23 @@ app.use(
 
 const PORT = process.env.PORT || 3000;
 
-// সার্ভার স্টার্ট হওয়ার সময় ডাটাবেজ কানেকশন চেক করার গ্লোবাল মিডলওয়্যার (Vercel-এর জন্য জরুরি)
-let isConnected = false;
+// Serverless-safe cached connection
+let cached = { connPromise: null };
 async function connectToDatabase() {
-  if (isConnected) return;
+  if (cached.connPromise) return cached.connPromise;
+
   const mongoUri = process.env.MONGODB_URI;
   if (!mongoUri) throw new Error('MONGODB_URI missing in environmental variables');
-  
-  await mongoose.connect(mongoUri);
-  isConnected = true;
-  await ensureAdmin();
-  
-  let settings = await Settings.findOne({});
-  if (!settings) await Settings.create({});
+
+  cached.connPromise = (async () => {
+    await mongoose.connect(mongoUri);
+    await ensureAdmin();
+
+    const settings = await Settings.findOne({});
+    if (!settings) await Settings.create({});
+  })();
+
+  return cached.connPromise;
 }
 
 async function ensureAdmin() {
@@ -68,8 +72,13 @@ app.get('/', (req, res) => {
   res.send('Cartiva Backend Server is Running Perfectly!');
 });
 
-app.get('/api/health', (req, res) => {
-  res.json({ ok: true });
+app.get('/api/health', async (req, res) => {
+  try {
+    await connectToDatabase();
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ ok: false });
+  }
 });
 
 // ===== Auth (Customer) =====
@@ -171,15 +180,8 @@ app.get('/api/store', async (req, res) => {
   }
 });
 
-// 💡 প্রোডাক্ট আপলোডকে সিকিউর রাখতে authAdmin বাদে ফ্রন্টএন্ডের অফলাইন টোকেনকেও অনুমোদন দেওয়া হলো
-app.post('/api/products', async (req, res, next) => {
-  // যদি ফ্রন্টএন্ড থেকে আসল এডমিন টোকেন না পাঠানো হয়, তবে রিকোয়েস্টটি সরাসরি হ্যান্ডেল হবে
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    return authAdmin(req, res, next);
-  }
-  next();
-}, async (req, res) => {
+// Admin-only: must have Bearer admin token
+app.post('/api/products', authAdmin, async (req, res) => {
   try {
     const p = req.body || {};
     const productId = String(p.id || '').trim();
@@ -217,13 +219,7 @@ app.post('/api/products', async (req, res, next) => {
   }
 });
 
-app.delete('/api/products/:id', async (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    return authAdmin(req, res, next);
-  }
-  next();
-}, async (req, res) => {
+app.delete('/api/products/:id', authAdmin, async (req, res) => {
   try {
     const id = String(req.params.id || '').trim();
     await Product.deleteOne({ id });
@@ -233,13 +229,7 @@ app.delete('/api/products/:id', async (req, res, next) => {
   }
 });
 
-app.post('/api/settings', async (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    return authAdmin(req, res, next);
-  }
-  next();
-}, async (req, res) => {
+app.post('/api/settings', authAdmin, async (req, res) => {
   try {
     const s = req.body || {};
     let doc = await Settings.findOne({});
