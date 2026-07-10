@@ -178,7 +178,6 @@
               <tbody id="productsTableBody"></tbody>
             </table>
           </div>
-          <button class="btn secondary" type="button" id="btnResetToDefaultProducts" style="margin-top:12px; width:100%">Reset Database to Defaults</button>
         </div>
       </div>
     </section>
@@ -187,7 +186,6 @@
   <script src="data/products.js"></script>
   <script>
     (function () {
-      // --- সরাসরি আপনার নিজের লাইভ ব্যাকএন্ডের সাথে কানেকশন ---
       const API_URL = '/api'; 
       
       let globalStore = {
@@ -201,7 +199,6 @@
         clearTimeout(showToast._t); showToast._t = setTimeout(() => toast.classList.remove('show'), 1500);
       }
 
-      // MongoDB ডাটাবেজ থেকে ডাটা লোড করার ফাংশন
       async function fetchCloudData() {
         const cloudStatus = document.getElementById('cloudStatus');
         if (cloudStatus) {
@@ -216,8 +213,6 @@
           globalStore.products = data.products || [];
           globalStore.settings = data.settings || globalStore.settings;
           
-          
-          const cloudStatus = document.getElementById('cloudStatus');
           if (cloudStatus) {
             cloudStatus.innerHTML = '✅ Cloud Synced Successfully.';
             cloudStatus.style.color = '#22c55e';
@@ -230,7 +225,6 @@
           applyGlobalUI();
           renderProductsTable();
         } catch (e) {
-          const cloudStatus = document.getElementById('cloudStatus');
           if (cloudStatus) {
             cloudStatus.innerHTML = '❌ Cloud Sync Failed. Offline mode active.';
             cloudStatus.style.color = '#ef4444';
@@ -241,14 +235,13 @@
         }
       }
 
-      // প্রোডাক্ট সেভ করার জন্য আপনার নিজস্ব এক্সপ্রেস ব্যাকএন্ডে ডাটা পাঠানোর ফাংশন
       async function saveProductToBackend(pData) {
-          const cloudStatusEl = document.getElementById('cloudStatus');
-          if (cloudStatusEl) {
-            cloudStatusEl.textContent = '⏳ Uploading changes to cloud...';
-            cloudStatusEl.style.color = '#f59e0b';
-            cloudStatusEl.style.display = 'block';
-          }
+        const cloudStatusEl = document.getElementById('cloudStatus');
+        if (cloudStatusEl) {
+          cloudStatusEl.textContent = '⏳ Uploading changes to cloud...';
+          cloudStatusEl.style.color = '#f59e0b';
+          cloudStatusEl.style.display = 'block';
+        }
         
         const token = localStorage.getItem('cartiva_admin_token') || ''; 
 
@@ -264,7 +257,6 @@
           
           if(!res.ok) throw new Error('Server error');
 
-          const cloudStatusEl = document.getElementById('cloudStatus');
           if (cloudStatusEl) {
             cloudStatusEl.textContent = '⚡ Saved Successfully to MongoDB!';
             cloudStatusEl.style.color = '#22c55e';
@@ -273,7 +265,6 @@
           fetchCloudData(); 
         } catch (e) {
           showToast('Failed to sync changes with cloud.');
-          const cloudStatusEl = document.getElementById('cloudStatus');
           if (cloudStatusEl) {
             cloudStatusEl.textContent = '❌ Upload failed. Ensure server config is correct.';
             cloudStatusEl.style.color = '#ef4444';
@@ -309,8 +300,8 @@
             <td>৳${p.price}</td>
             <td><span style="color:${p.stock==='in-stock'?'#22c55e':'#ef4444'}">${p.stock}</span></td>
             <td>
-              <button class="btn secondary" style="padding:4px 8px; font-size:12px" onclick="editProduct('${p.id}')">Edit</button>
-              <button class="btn secondary" style="padding:4px 8px; font-size:12px; background:#ef4444; color:#fff" onclick="deleteProduct('${p.id}')">Delete</button>
+              <button class="btn secondary" style="padding:4px 8px; font-size:12px" onclick="window.editProduct('${p.id}')">Edit</button>
+              <button class="btn secondary" style="padding:4px 8px; font-size:12px; background:#ef4444; color:#fff" onclick="window.deleteProduct('${p.id}')">Delete</button>
             </td>
           </tr>
         `).join('');
@@ -344,6 +335,16 @@
           showToast('Failed to delete product');
         }
       };
+
+      document.getElementById('btnClearForm').addEventListener('click', () => {
+        document.getElementById('pId').disabled = false;
+        document.getElementById('pId').value = '';
+        document.getElementById('pName').value = '';
+        document.getElementById('pPrice').value = '';
+        document.getElementById('pOriginalPrice').value = '';
+        document.getElementById('pDesc').value = '';
+        document.getElementById('pImages').value = '';
+      });
 
       document.getElementById('btnSave').addEventListener('click', async () => {
         const id = document.getElementById('pId').value.trim();
@@ -394,16 +395,12 @@
             },
             body: JSON.stringify(sData)
           });
+          showToast('Settings saved successfully!');
           fetchCloudData();
         } catch {
           showToast('Failed to save settings');
         }
       });
-
-
-
-
-      // --- ACCOUNT SECURITY LOGIC ---
 
       const SESSION_STORAGE_KEY = 'cartiva_admin_session_v1';
 
@@ -462,23 +459,14 @@
       async function fetchAdminOrders() {
         try {
           const token = localStorage.getItem('cartiva_admin_token') || '';
-
           const res = await fetch('/api/admin/orders', {
             headers: { Authorization: `Bearer ${token}` },
           });
 
-
-          if (!res.ok) {
-            const txt = await res.text().catch(() => '');
-            console.warn('fetchAdminOrders failed', res.status, txt);
-            return [];
-          }
-
+          if (!res.ok) return [];
           const data = await res.json();
-          console.log('orders fetched', (data?.orders || []).length);
           return data.orders || [];
         } catch (e) {
-          console.warn('fetchAdminOrders exception', e);
           return [];
         }
       }
@@ -504,21 +492,18 @@
       async function refreshOrders() {
         const statusEl = document.getElementById('ordersStatus');
         try {
-          if (statusEl) statusEl.textContent = '🔄 Syncing orders...';
           if (statusEl) statusEl.textContent = 'Loading orders...';
           const orders = await fetchAdminOrders();
           renderOrdersTable(orders);
           if (statusEl) statusEl.textContent = `Orders: ${(orders || []).length}`;
         } catch (e) {
-          console.warn('refreshOrders error', e);
-          statusEl && (statusEl.textContent = 'Failed to load orders');
+          if (statusEl) statusEl.textContent = 'Failed to load orders';
         }
       }
 
       const btnRefresh = document.getElementById('btnRefreshOrders');
-      btnRefresh && btnRefresh.addEventListener('click', () => refreshOrders());
+      if (btnRefresh) btnRefresh.addEventListener('click', () => refreshOrders());
 
-      // Init load
       checkSession();
       fetchCloudData();
       refreshOrders();
