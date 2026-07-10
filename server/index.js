@@ -17,9 +17,32 @@ const bcrypt = require('bcryptjs');
 const app = express();
 app.use(express.json({ limit: '2mb' }));
 
+function buildCorsOptions(req, callback) {
+  // Allow multiple origins: ORIGIN="https://a.com,https://b.com"
+  const raw = process.env.ORIGIN || '';
+  const allowedOrigins = raw
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  // If ORIGIN is not set, fall back to permissive mode
+  // (useful for local dev; replace with explicit ORIGIN in production).
+  const isPermissive = allowedOrigins.length === 0;
+
+  const reqOrigin = req.header('Origin');
+
+  if (isPermissive) return callback(null, { origin: true });
+  if (!reqOrigin) return callback(null, { origin: false });
+  if (allowedOrigins.includes(reqOrigin)) {
+    return callback(null, { origin: true });
+  }
+
+  return callback(null, { origin: false });
+}
+
 app.use(
   cors({
-    origin: process.env.ORIGIN || '*',
+    origin: buildCorsOptions,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -27,7 +50,12 @@ app.use(
 );
 
 // Ensure CORS preflight works reliably on mobile browsers
-app.options('*', cors({ origin: process.env.ORIGIN || '*', credentials: true }));
+app.options('*', cors({
+  origin: buildCorsOptions,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 
 const PORT = process.env.PORT || 3000;
 
@@ -306,13 +334,18 @@ app.get('/api/admin/orders', authAdmin, async (req, res) => {
 });
 
 // লোকাল ডেভেলপমেন্টের জন্য পোর্ট লিসেনার অন রাখা হলো
+// NOTE: Do NOT rely on this block for database initialization.
+// In serverless environments (e.g. Vercel), this file is imported/handled
+// without executing require.main === module.
 if (require.main === module) {
-  connectToDatabase().then(() => {
-    app.listen(PORT, () => {
+  app.listen(PORT, async () => {
+    try {
+      await connectToDatabase();
       console.log(`Cartiva backend listening on port ${PORT}`);
-    });
-  }).catch(err => {
-    console.error('Failed to start standalone server', err);
+    } catch (err) {
+      console.error('Failed to start standalone server', err);
+      process.exitCode = 1;
+    }
   });
 }
 
