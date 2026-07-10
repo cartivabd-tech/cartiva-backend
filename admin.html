@@ -203,26 +203,38 @@
 
       // MongoDB ডাটাবেজ থেকে ডাটা লোড করার ফাংশন
       async function fetchCloudData() {
+        const cloudStatus = document.getElementById('cloudStatus');
+        if (cloudStatus) {
+          cloudStatus.innerHTML = '🔄 Syncing with Cloud...';
+          cloudStatus.style.color = '#f59e0b';
+          cloudStatus.style.display = 'block';
+        }
+
         try {
           const res = await fetch(API_URL + '/store');
-          if (!res.ok) throw new Error('Failed to load /api/store');
           const data = await res.json();
           globalStore.products = data.products || [];
           globalStore.settings = data.settings || globalStore.settings;
-
-          // Clear the offline banner on successful load
+          
+          
           const cloudStatus = document.getElementById('cloudStatus');
-          if (cloudStatus) cloudStatus.style.display = 'none';
-
+          if (cloudStatus) {
+            cloudStatus.innerHTML = '✅ Cloud Synced Successfully.';
+            cloudStatus.style.color = '#22c55e';
+            cloudStatus.style.display = 'block';
+            setTimeout(() => {
+              if (cloudStatus) cloudStatus.style.display = 'none';
+            }, 2000);
+          }
+          
           applyGlobalUI();
           renderProductsTable();
         } catch (e) {
-          // Keep the UI clean, but still render whatever we can.
-          console.error(e);
           const cloudStatus = document.getElementById('cloudStatus');
           if (cloudStatus) {
-            cloudStatus.textContent = '❌ Cloud Sync Failed. Offline mode active.';
+            cloudStatus.innerHTML = '❌ Cloud Sync Failed. Offline mode active.';
             cloudStatus.style.color = '#ef4444';
+            cloudStatus.style.display = 'block';
           }
           if(window.CartivaProducts) globalStore.products = window.CartivaProducts;
           renderProductsTable();
@@ -231,8 +243,12 @@
 
       // প্রোডাক্ট সেভ করার জন্য আপনার নিজস্ব এক্সপ্রেস ব্যাকএন্ডে ডাটা পাঠানোর ফাংশন
       async function saveProductToBackend(pData) {
-        document.getElementById('cloudStatus').textContent = '⏳ Uploading changes to cloud...';
-        document.getElementById('cloudStatus').style.color = '#f59e0b';
+          const cloudStatusEl = document.getElementById('cloudStatus');
+          if (cloudStatusEl) {
+            cloudStatusEl.textContent = '⏳ Uploading changes to cloud...';
+            cloudStatusEl.style.color = '#f59e0b';
+            cloudStatusEl.style.display = 'block';
+          }
         
         const token = localStorage.getItem('cartiva_admin_token') || ''; 
 
@@ -248,14 +264,21 @@
           
           if(!res.ok) throw new Error('Server error');
 
-          document.getElementById('cloudStatus').textContent = '⚡ Saved Successfully to MongoDB!';
-          document.getElementById('cloudStatus').style.color = '#22c55e';
+          const cloudStatusEl = document.getElementById('cloudStatus');
+          if (cloudStatusEl) {
+            cloudStatusEl.textContent = '⚡ Saved Successfully to MongoDB!';
+            cloudStatusEl.style.color = '#22c55e';
+          }
           showToast('Product Synchronized Online!');
           fetchCloudData(); 
         } catch (e) {
           showToast('Failed to sync changes with cloud.');
-          document.getElementById('cloudStatus').textContent = '❌ Upload failed. Ensure server config is correct.';
-          document.getElementById('cloudStatus').style.color = '#ef4444';
+          const cloudStatusEl = document.getElementById('cloudStatus');
+          if (cloudStatusEl) {
+            cloudStatusEl.textContent = '❌ Upload failed. Ensure server config is correct.';
+            cloudStatusEl.style.color = '#ef4444';
+            cloudStatusEl.style.display = 'block';
+          }
         }
       }
 
@@ -384,16 +407,14 @@
 
       const SESSION_STORAGE_KEY = 'cartiva_admin_session_v1';
 
-      // Clear any stale cloud status message as soon as the page JS boots
-      const cloudStatusEl = document.getElementById('cloudStatus');
-      if (cloudStatusEl) cloudStatusEl.style.display = 'none';
-
       function checkSession() {
         try {
           const active = localStorage.getItem(SESSION_STORAGE_KEY);
           if (active === 'true') {
-            document.getElementById('loginSection').style.display = 'none';
-            document.getElementById('adminPanel').style.display = 'block';
+            const loginSection = document.getElementById('loginSection');
+            const adminPanel = document.getElementById('adminPanel');
+            if (loginSection) loginSection.style.display = 'none';
+            if (adminPanel) adminPanel.style.display = 'block';
           }
         } catch {}
       }
@@ -442,10 +463,10 @@
         try {
           const token = localStorage.getItem('cartiva_admin_token') || '';
 
-          // Relative endpoint (same domain on Vercel)
           const res = await fetch('/api/admin/orders', {
             headers: { Authorization: `Bearer ${token}` },
           });
+
 
           if (!res.ok) {
             const txt = await res.text().catch(() => '');
@@ -454,6 +475,7 @@
           }
 
           const data = await res.json();
+          console.log('orders fetched', (data?.orders || []).length);
           return data.orders || [];
         } catch (e) {
           console.warn('fetchAdminOrders exception', e);
@@ -482,10 +504,11 @@
       async function refreshOrders() {
         const statusEl = document.getElementById('ordersStatus');
         try {
-          statusEl && (statusEl.textContent = 'Loading orders...');
+          if (statusEl) statusEl.textContent = '🔄 Syncing orders...';
+          if (statusEl) statusEl.textContent = 'Loading orders...';
           const orders = await fetchAdminOrders();
           renderOrdersTable(orders);
-          statusEl && (statusEl.textContent = `Orders: ${(orders || []).length}`);
+          if (statusEl) statusEl.textContent = `Orders: ${(orders || []).length}`;
         } catch (e) {
           console.warn('refreshOrders error', e);
           statusEl && (statusEl.textContent = 'Failed to load orders');

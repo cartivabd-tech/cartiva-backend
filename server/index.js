@@ -338,11 +338,12 @@ app.get('/api/admin/orders', authAdmin, async (req, res) => {
 // In serverless environments (e.g. Vercel), this file is imported/handled
 // without executing require.main === module.
 // Warm up the database connection for serverless invocations too.
-// This call is safe because connectToDatabase() is memoized via cached.connPromise.
-// It will run on module import (Vercel serverless) and still remain non-blocking.
-connectToDatabase().catch(err => {
-  console.error('Initial database connection error (will retry per-request):', err);
-});
+// Keep this non-blocking: Vercel will still retry per-request via app.use middleware.
+if (process.env.MONGODB_URI) {
+  connectToDatabase().catch(() => {
+    // Swallow warmup errors; app-level middleware will surface real errors per-request.
+  });
+}
 
 // Local development only
 if (require.main === module) {
