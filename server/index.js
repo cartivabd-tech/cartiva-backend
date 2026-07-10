@@ -21,8 +21,13 @@ app.use(
   cors({
     origin: process.env.ORIGIN || '*',
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
+
+// Ensure CORS preflight works reliably on mobile browsers
+app.options('*', cors({ origin: process.env.ORIGIN || '*', credentials: true }));
 
 const PORT = process.env.PORT || 3000;
 
@@ -75,8 +80,8 @@ app.get('/', (req, res) => {
 app.get('/api/health', async (req, res) => {
   try {
     await connectToDatabase();
-    res.json({ ok: true });
-  } catch {
+    res.json({ ok: true, hasOrders: true });
+  } catch (e) {
     res.status(500).json({ ok: false });
   }
 });
