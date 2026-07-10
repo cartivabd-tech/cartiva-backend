@@ -154,6 +154,10 @@
         <div>
           <h3>Orders</h3>
           <div style="margin-top:10px; overflow:auto; max-height:260px">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px">
+              <button class="btn secondary" type="button" id="btnRefreshOrders" style="padding:6px 12px; font-size:12px">Refresh Orders</button>
+              <div id="ordersStatus" style="color:var(--muted); font-size:12px">Loading...</div>
+            </div>
             <table class="table">
               <thead>
                 <tr><th>Order ID</th><th>Customer</th><th>Total</th><th>Items</th></tr>
@@ -465,9 +469,20 @@
       }
 
       async function refreshOrders() {
-        const orders = await fetchAdminOrders();
-        renderOrdersTable(orders);
+        const statusEl = document.getElementById('ordersStatus');
+        try {
+          statusEl && (statusEl.textContent = 'Loading orders...');
+          const orders = await fetchAdminOrders();
+          renderOrdersTable(orders);
+          statusEl && (statusEl.textContent = `Orders: ${(orders || []).length}`);
+        } catch (e) {
+          console.warn('refreshOrders error', e);
+          statusEl && (statusEl.textContent = 'Failed to load orders');
+        }
       }
+
+      const btnRefresh = document.getElementById('btnRefreshOrders');
+      btnRefresh && btnRefresh.addEventListener('click', () => refreshOrders());
 
       // Init load
       checkSession();
