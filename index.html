@@ -128,7 +128,6 @@
     }
 
     function initCategories() {
-      // ক্যাটাগরি ড্রপডাউন ডাইনামিক করা
       categorySelect.innerHTML = '<option value="all">All categories</option>';
       const cats = Array.from(new Set(liveProducts.map(p => p.category))).filter(Boolean).sort();
       cats.forEach(c => {
@@ -153,37 +152,41 @@
         return;
       }
 
-      grid.innerHTML = filtered.map(p => `
-        <div class="product" style="cursor:pointer">
-          <div class="product-image-wrap">
-            <img class="product-image" src="${p.image || (p.images ? p.images[0] : '')}" alt="${p.name}" />
-            ${p.originalPrice ? `<span class="badge" style="background:#ef4444; position:absolute; top:10px; left:10px; color:#fff">Sale</span>` : ''}
-          </div>
-          <div class="product-body">
-            <div class="small muted" style="text-transform:uppercase; font-size:11px; font-weight:bold; margin-bottom:4px">${p.category}</div>
-            <h3 class="product-title" style="margin:0 0 8px 0; font-size:16px">${p.name}</h3>
-            <p style="font-size:13px; color:var(--muted); margin:0 0 12px 0; display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${p.description || ''}</p>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:auto">
-              <div>
-                ${p.originalPrice ? `<span style="text-decoration:line-through; color:var(--muted); font-size:13px; margin-right:6px">৳${p.originalPrice}</span>` : ''}
-                <strong style="color:var(--accent); font-size:18px">৳${p.price}</strong>
+      grid.innerHTML = filtered.map(p => {
+        // মঙ্গোডিবি আইডি হ্যান্ডলিং-এর জন্য আইডি ব্যাকআপ
+        const targetId = p.id || p._id; 
+        return `
+          <div class="product" style="cursor:pointer" data-product-card-id="${targetId}">
+            <div class="product-image-wrap">
+              <img class="product-image" src="${p.image || (p.images ? p.images[0] : '')}" alt="${p.name}" />
+              ${p.originalPrice ? `<span class="badge" style="background:#ef4444; position:absolute; top:10px; left:10px; color:#fff">Sale</span>` : ''}
+            </div>
+            <div class="product-body">
+              <div class="small muted" style="text-transform:uppercase; font-size:11px; font-weight:bold; margin-bottom:4px">${p.category}</div>
+              <h3 class="product-title" style="margin:0 0 8px 0; font-size:16px">${p.name}</h3>
+              <p style="font-size:13px; color:var(--muted); margin:0 0 12px 0; display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${p.description || ''}</p>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-top:auto">
+                <div>
+                  ${p.originalPrice ? `<span style="text-decoration:line-through; color:var(--muted); font-size:13px; margin-right:6px">৳${p.originalPrice}</span>` : ''}
+                  <strong style="color:var(--accent); font-size:18px">৳${p.price}</strong>
+                </div>
+                <button class="btn" style="padding:6px 12px; font-size:13px" data-add="${targetId}" ${p.stock==='out-of-stock'?'disabled':''}>
+                  ${p.stock === 'out-of-stock' ? 'Out of Stock' : 'Add +'}
+                </button>
               </div>
-              <button class="btn" style="padding:6px 12px; font-size:13px" data-add="${p.id}" ${p.stock==='out-of-stock'?'disabled':''}>
-                ${p.stock === 'out-of-stock' ? 'Out of Stock' : 'Add +'}
-              </button>
             </div>
           </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
 
-      // প্রোডাক্ট কার্ড এবং অ্যাড-টু-কার্ট ক্লিক হ্যান্ডলার
+      // প্রোডাক্ট কার্ড এবং অ্যাড-টু-কার্ট ক্লিক হ্যান্ডলার ফিক্স
       grid.querySelectorAll('.product').forEach(card => {
         const addBtn = card.querySelector('[data-add]');
-        const id = addBtn?.getAttribute('data-add');
+        const id = card.getAttribute('data-product-card-id');
         
         card.addEventListener('click', () => {
           if(!id) return;
-          const p = liveProducts.find(x => x.id === id);
+          const p = liveProducts.find(x => (x.id === id || x._id === id));
           if(!p) return;
           openProductModal(p);
         });
@@ -192,10 +195,25 @@
           addBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             const pid = addBtn.getAttribute('data-add');
-            if(window.CartivaCart) {
+            
+            // ১. js/app.js গলোবাল অবজেক্ট চেক
+            if(window.CartivaCart && typeof window.CartivaCart.addToCart === 'function') {
               window.CartivaCart.addToCart(pid, 1);
               showToast('Added to cart');
               syncCartBadges();
+            } else {
+              // ২. ব্যাকআপ লোকাল স্টোরেজ কার্ট হ্যান্ডলার (যদি গ্লোবাল স্ক্রিপ্ট মিসিং থাকে)
+              let cart = [];
+              try { cart = JSON.parse(localStorage.getItem('cartiva_cart_v1')) || []; } catch(err){}
+              const p = liveProducts.find(x => (x.id === pid || x._id === pid));
+              if(p) {
+                const exist = cart.find(x => x.id === pid);
+                if (exist) { exist.qty += 1; } else { cart.push({ id: pid, name: p.name, price: p.price, image: p.image, qty: 1 }); }
+                localStorage.setItem('cartiva_cart_v1', JSON.stringify(cart));
+                showToast('Added to cart');
+                window.dispatchEvent(new CustomEvent('cartiva:cartChanged'));
+                syncCartBadges();
+              }
             }
           });
         }
@@ -245,7 +263,7 @@
           <p style="white-space:pre-wrap">${escapeHtml(p.description || '')}</p>
 
           <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap">
-            <div class="small" style="color:var(--muted); font-weight:800">Product ID: <span class="mono">${escapeHtml(p.id || '')}</span></div>
+            <div class="small" style="color:var(--muted); font-weight:800">Product ID: <span class="mono">${escapeHtml(p.id || p._id || '')}</span></div>
             <button class="btn" type="button" id="modalAddBtn" ${stock === 'out-of-stock' || stock === 'upcoming' ? 'disabled' : ''}>
               ${stock === 'out-of-stock' ? 'Out of Stock' : stock === 'upcoming' ? 'Coming Soon' : 'Add to cart'}
             </button>
@@ -288,7 +306,6 @@
       closeBtn.addEventListener('click', onClose, { once: true });
       overlay.addEventListener('click', (e) => { if(e.target === overlay) onClose(); });
 
-      // থাম্বনেইল গ্যালারি লজিক
       const thumbs = overlay.querySelectorAll('[data-thumb-index]');
       thumbs.forEach(t => {
         t.addEventListener('click', () => {
@@ -302,9 +319,20 @@
 
       const addBtn = overlay.querySelector('#modalAddBtn');
       addBtn?.addEventListener('click', () => {
-        if(window.CartivaCart) {
-          window.CartivaCart.addToCart(p.id, 1);
+        const targetId = p.id || p._id;
+        if(window.CartivaCart && typeof window.CartivaCart.addToCart === 'function') {
+          window.CartivaCart.addToCart(targetId, 1);
           showToast('Added to cart');
+          syncCartBadges();
+          onClose();
+        } else {
+          let cart = [];
+          try { cart = JSON.parse(localStorage.getItem('cartiva_cart_v1')) || []; } catch(err){}
+          const exist = cart.find(x => x.id === targetId);
+          if (exist) { exist.qty += 1; } else { cart.push({ id: targetId, name: p.name, price: p.price, image: p.image, qty: 1 }); }
+          localStorage.setItem('cartiva_cart_v1', JSON.stringify(cart));
+          showToast('Added to cart');
+          window.dispatchEvent(new CustomEvent('cartiva:cartChanged'));
           syncCartBadges();
           onClose();
         }
@@ -312,11 +340,17 @@
     }
 
     function syncCartBadges() {
-      if(window.CartivaCart) {
-        const count = window.CartivaCart.getCartCount();
-        document.getElementById('cartCount').textContent = String(count);
-        document.getElementById('cartCountBig').textContent = String(count);
+      let count = 0;
+      if(window.CartivaCart && typeof window.CartivaCart.getCartCount === 'function') {
+        count = window.CartivaCart.getCartCount();
+      } else {
+        try {
+          const cart = JSON.parse(localStorage.getItem('cartiva_cart_v1')) || [];
+          count = cart.reduce((acc, item) => acc + item.qty, 0);
+        } catch(e){}
       }
+      document.getElementById('cartCount').textContent = String(count);
+      document.getElementById('cartCountBig').textContent = String(count);
     }
 
     function syncAuthPill() {
@@ -346,7 +380,6 @@
     categorySelect.addEventListener('change', renderProducts);
     window.addEventListener('cartiva:cartChanged', syncCartBadges);
 
-    // রান ইনিশিয়েট
     initLiveStore();
     setTimeout(() => {
       syncCartBadges();
