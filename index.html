@@ -74,13 +74,11 @@
   </main>
 
   <script src="js/app.js"></script>
+  <script src="data/products.js"></script>
   <script>
-    // Set your Render backend URL here once deployed
-window.CartivaApiBase = window.CartivaApiBase || 'https://cartiva-backend.vercel.app';
-  </script>
-  <script>
-    const BIN_ID = '6668d298ad19ca34f877ca6b';
-    const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}/latest`;
+    // লাইভ ভার্সেল ব্যাকএন্ড ইউআরএল কনফিগারেশন
+    window.CartivaApiBase = window.CartivaApiBase || window.location.origin;
+    const API_URL = window.CartivaApiBase + '/api/store';
 
     let liveProducts = [];
 
@@ -95,15 +93,18 @@ window.CartivaApiBase = window.CartivaApiBase || 'https://cartiva-backend.vercel
       clearTimeout(showToast._t); showToast._t = setTimeout(() => toast.classList.remove('show'), 1500);
     }
 
+    // সরাসরি আপনার মঙ্গোডিবি ডাটাবেজ থেকে ডেটা নিয়ে আসার মেইন ফাংশন
     async function initLiveStore() {
       try {
         const res = await fetch(API_URL);
-        const data = await res.json();
-        const store = data.record;
+        if(!res.ok) throw new Error("Backend response error");
         
-        liveProducts = store.products || window.CartivaProducts || [];
+        const store = await res.json();
         
-        // Setup settings
+        // ব্যাকএন্ডে প্রোডাক্ট থাকলে সেটা নিবে, না থাকলে ডিফল্ট লোকাল ফাইল ব্যবহার করবে
+        liveProducts = (store.products && store.products.length > 0) ? store.products : (window.CartivaProducts || []);
+        
+        // গ্লোবাল সেটিংস এবং লোগো সেটআপ
         if(store.settings) {
           const s = store.settings;
           if(s.logoUrl) {
@@ -116,10 +117,9 @@ window.CartivaApiBase = window.CartivaApiBase || 'https://cartiva-backend.vercel
           if(s.fbUrl) document.getElementById('linkFacebook').href = s.fbUrl;
           if(s.igUrl) document.getElementById('linkInstagram').href = s.igUrl;
           if(s.tikTokUrl) document.getElementById('linkTikTok').href = s.tikTokUrl;
-          if(s.tiktokUrl) document.getElementById('linkTikTok').href = s.tiktokUrl;
         }
       } catch(e) {
-        console.log("Offline mode fallback");
+        console.log("Offline mode fallback active:", e);
         liveProducts = window.CartivaProducts || [];
       }
 
@@ -128,7 +128,9 @@ window.CartivaApiBase = window.CartivaApiBase || 'https://cartiva-backend.vercel
     }
 
     function initCategories() {
-      const cats = Array.from(new Set(liveProducts.map(p => p.category))).sort();
+      // ক্যাটাগরি ড্রপডাউন ডাইনামিক করা
+      categorySelect.innerHTML = '<option value="all">All categories</option>';
+      const cats = Array.from(new Set(liveProducts.map(p => p.category))).filter(Boolean).sort();
       cats.forEach(c => {
         const opt = document.createElement('option');
         opt.value = c; opt.textContent = c;
@@ -142,7 +144,7 @@ window.CartivaApiBase = window.CartivaApiBase || 'https://cartiva-backend.vercel
       
       let filtered = liveProducts;
       if (cat && cat !== 'all') filtered = filtered.filter(p => p.category === cat);
-      if (q) filtered = filtered.filter(p => (p.name + ' ' + p.description).toLowerCase().includes(q));
+      if (q) filtered = filtered.filter(p => (p.name + ' ' + (p.description || '')).toLowerCase().includes(q));
 
       productCount.textContent = String(filtered.length);
 
@@ -160,7 +162,7 @@ window.CartivaApiBase = window.CartivaApiBase || 'https://cartiva-backend.vercel
           <div class="product-body">
             <div class="small muted" style="text-transform:uppercase; font-size:11px; font-weight:bold; margin-bottom:4px">${p.category}</div>
             <h3 class="product-title" style="margin:0 0 8px 0; font-size:16px">${p.name}</h3>
-            <p style="font-size:13px; color:var(--muted); margin:0 0 12px 0; display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${p.description}</p>
+            <p style="font-size:13px; color:var(--muted); margin:0 0 12px 0; display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${p.description || ''}</p>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:auto">
               <div>
                 ${p.originalPrice ? `<span style="text-decoration:line-through; color:var(--muted); font-size:13px; margin-right:6px">৳${p.originalPrice}</span>` : ''}
@@ -174,23 +176,27 @@ window.CartivaApiBase = window.CartivaApiBase || 'https://cartiva-backend.vercel
         </div>
       `).join('');
 
-      // Add handler click + product detail popup on card click
+      // প্রোডাক্ট কার্ড এবং অ্যাড-টু-কার্ট ক্লিক হ্যান্ডলার
       grid.querySelectorAll('.product').forEach(card => {
         const addBtn = card.querySelector('[data-add]');
         const id = addBtn?.getAttribute('data-add');
+        
         card.addEventListener('click', () => {
           if(!id) return;
           const p = liveProducts.find(x => x.id === id);
           if(!p) return;
           openProductModal(p);
         });
+        
         if(addBtn){
           addBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             const pid = addBtn.getAttribute('data-add');
-            window.CartivaCart.addToCart(pid, 1);
-            showToast('Added to cart');
-            syncCartBadges();
+            if(window.CartivaCart) {
+              window.CartivaCart.addToCart(pid, 1);
+              showToast('Added to cart');
+              syncCartBadges();
+            }
           });
         }
       });
@@ -251,14 +257,13 @@ window.CartivaApiBase = window.CartivaApiBase || 'https://cartiva-backend.vercel
     function escapeHtml(s) {
       return String(s)
         .replaceAll('&', '&amp;')
-        .replaceAll('<', '<')
-        .replaceAll('>', '>')
-        .replaceAll('"', '"')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
         .replaceAll("'", '&#039;');
     }
 
     function openProductModal(p) {
-      // Ensure modal elements exist once.
       let overlay = document.getElementById('productModalOverlay');
       if(!overlay){
         overlay = document.createElement('div');
@@ -279,15 +284,11 @@ window.CartivaApiBase = window.CartivaApiBase || 'https://cartiva-backend.vercel
       overlay.classList.add('open');
 
       const closeBtn = overlay.querySelector('.modal-close');
-      const onClose = () => {
-        overlay.classList.remove('open');
-      };
+      const onClose = () => { overlay.classList.remove('open'); };
       closeBtn.addEventListener('click', onClose, { once: true });
-      overlay.addEventListener('click', (e) => {
-        if(e.target === overlay) onClose();
-      }, { once: true });
+      overlay.addEventListener('click', (e) => { if(e.target === overlay) onClose(); });
 
-      // Thumbnails logic
+      // থাম্বনেইল গ্যালারি লজিক
       const thumbs = overlay.querySelectorAll('[data-thumb-index]');
       thumbs.forEach(t => {
         t.addEventListener('click', () => {
@@ -301,17 +302,21 @@ window.CartivaApiBase = window.CartivaApiBase || 'https://cartiva-backend.vercel
 
       const addBtn = overlay.querySelector('#modalAddBtn');
       addBtn?.addEventListener('click', () => {
-        window.CartivaCart.addToCart(p.id, 1);
-        showToast('Added to cart');
-        syncCartBadges();
-        onClose();
+        if(window.CartivaCart) {
+          window.CartivaCart.addToCart(p.id, 1);
+          showToast('Added to cart');
+          syncCartBadges();
+          onClose();
+        }
       });
     }
 
     function syncCartBadges() {
-      const count = window.CartivaCart.getCartCount();
-      document.getElementById('cartCount').textContent = String(count);
-      document.getElementById('cartCountBig').textContent = String(count);
+      if(window.CartivaCart) {
+        const count = window.CartivaCart.getCartCount();
+        document.getElementById('cartCount').textContent = String(count);
+        document.getElementById('cartCountBig').textContent = String(count);
+      }
     }
 
     function syncAuthPill() {
@@ -341,7 +346,7 @@ window.CartivaApiBase = window.CartivaApiBase || 'https://cartiva-backend.vercel
     categorySelect.addEventListener('change', renderProducts);
     window.addEventListener('cartiva:cartChanged', syncCartBadges);
 
-    // Initial load
+    // রান ইনিশিয়েট
     initLiveStore();
     setTimeout(() => {
       syncCartBadges();
