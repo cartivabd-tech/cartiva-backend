@@ -70,7 +70,7 @@
           </div>
           <div class="field password-field">
             <div class="label">Admin password</div>
-            <input class="input" id="adminPass" type="password" placeholder="admin123" required />
+            <input class="input" id="adminPass" type="password" placeholder="123" required />
             <button type="button" class="password-toggle" id="btnToggleLoginPassword">👁️</button>
           </div>
         </div>
@@ -84,7 +84,7 @@
       <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:flex-start">
         <div>
           <h2 style="margin:0 0 8px; font-size:22px">Product Manager</h2>
-          <div class="note" style="margin:0">অ্যাডমিন প্যানেলে যেকোনো পরিবর্তন এখন সরাসরি অনলাইন ক্লাউডে অটো-সেভ হয়ে যাবে!</div>
+          <div class="note" style="margin:0">অ্যাডমিন প্যানেলে যেকোনো পরিবর্তন এখন সরাসরি অনলাইন ক্লাউডে অটো-সেভ হয়ে যাবে!</div>
         </div>
         <div class="admin-actions">
           <a class="btn secondary" href="index.html">View Shop</a>
@@ -170,9 +170,8 @@
   <script src="data/products.js"></script>
   <script>
     (function () {
-      // --- CLOUD DATABASE CONFIGURATION ---
-      const BIN_ID = '6668d298ad19ca34f877ca6b'; 
-      const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+      // --- সরাসরি আপনার নিজের লাইভ ব্যাকএন্ডের সাথে কানেকশন ---
+      const API_URL = '/api'; 
       
       let globalStore = {
         products: [],
@@ -185,13 +184,15 @@
         clearTimeout(showToast._t); showToast._t = setTimeout(() => toast.classList.remove('show'), 1500);
       }
 
-      // Load Data From Cloud
+      // MongoDB ডাটাবেজ থেকে ডাটা লোড করার ফাংশন
       async function fetchCloudData() {
         try {
-          const res = await fetch(API_URL + '/latest');
+          const res = await fetch(API_URL + '/store');
           const data = await res.json();
-          globalStore = data.record;
-          document.getElementById('cloudStatus').textContent = '⚡ Connected to Live Cloud Database (Sync Active)';
+          globalStore.products = data.products || [];
+          globalStore.settings = data.settings || globalStore.settings;
+          
+          document.getElementById('cloudStatus').textContent = '⚡ Connected to Your MongoDB Database via Vercel';
           document.getElementById('cloudStatus').style.color = '#22c55e';
           applyGlobalUI();
           renderProductsTable();
@@ -203,21 +204,33 @@
         }
       }
 
-      // Save Data to Cloud Automatically
-      async function saveCloudData() {
+      // প্রোডাক্ট সেভ করার জন্য আপনার নিজস্ব এক্সপ্রেস ব্যাকএন্ডে ডাটা পাঠানোর ফাংশন
+      async function saveProductToBackend(pData) {
         document.getElementById('cloudStatus').textContent = '⏳ Uploading changes to cloud...';
         document.getElementById('cloudStatus').style.color = '#f59e0b';
+        
+        const token = localStorage.getItem('cartiva_admin_token') || ''; 
+
         try {
-          await fetch(API_URL, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(globalStore)
+          const res = await fetch(API_URL + '/products', {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}` 
+            },
+            body: JSON.stringify(pData)
           });
-          document.getElementById('cloudStatus').textContent = '⚡ Saved Successfully to Cloud Database!';
+          
+          if(!res.ok) throw new Error('Server error');
+
+          document.getElementById('cloudStatus').textContent = '⚡ Saved Successfully to MongoDB!';
           document.getElementById('cloudStatus').style.color = '#22c55e';
-          showToast('Database Synchronized Online!');
+          showToast('Product Synchronized Online!');
+          fetchCloudData(); 
         } catch (e) {
           showToast('Failed to sync changes with cloud.');
+          document.getElementById('cloudStatus').textContent = '❌ Upload failed. Ensure server config is correct.';
+          document.getElementById('cloudStatus').style.color = '#ef4444';
         }
       }
 
@@ -231,13 +244,12 @@
         if(s.fbUrl) document.getElementById('linkFacebook').href = s.fbUrl;
         if(s.igUrl) document.getElementById('linkInstagram').href = s.igUrl;
         if(s.tikTokUrl) document.getElementById('linkTikTok').href = s.tikTokUrl;
-        if(s.tiktokUrl) document.getElementById('linkTikTok').href = s.tiktokUrl;
         
         document.getElementById('logoUrl').value = s.logoUrl || '';
         document.getElementById('waUrl').value = s.waUrl || '';
         document.getElementById('fbUrl').value = s.fbUrl || '';
         document.getElementById('igUrl').value = s.igUrl || '';
-        document.getElementById('tiktokUrl').value = s.tikTokUrl || s.tiktokUrl || '';
+        document.getElementById('tiktokUrl').value = s.tikTokUrl || '';
       }
 
       function renderProductsTable() {
@@ -273,9 +285,16 @@
 
       window.deleteProduct = async function(id) {
         if(!confirm('Delete this product from server permanently?')) return;
-        globalStore.products = globalStore.products.filter(x => x.id !== id);
-        renderProductsTable();
-        await saveCloudData();
+        try {
+          const token = localStorage.getItem('cartiva_admin_token') || '';
+          await fetch(`${API_URL}/products/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          fetchCloudData();
+        } catch {
+          showToast('Failed to delete product');
+        }
       };
 
       document.getElementById('btnSave').addEventListener('click', async () => {
@@ -297,9 +316,7 @@
           images: imgs
         };
 
-        const idx = globalStore.products.findIndex(x => x.id === id);
-        if(idx > -1) globalStore.products[idx] = pData;
-        else globalStore.products.push(pData);
+        await saveProductToBackend(pData);
 
         document.getElementById('pId').disabled = false;
         document.getElementById('pId').value = '';
@@ -308,43 +325,39 @@
         document.getElementById('pOriginalPrice').value = '';
         document.getElementById('pDesc').value = '';
         document.getElementById('pImages').value = '';
-        
-        renderProductsTable();
-        await saveCloudData();
       });
 
       document.getElementById('btnSaveSettings').addEventListener('click', async () => {
-        globalStore.settings.logoUrl = document.getElementById('logoUrl').value.trim();
-        globalStore.settings.waUrl = document.getElementById('waUrl').value.trim();
-        globalStore.settings.fbUrl = document.getElementById('fbUrl').value.trim();
-        globalStore.settings.igUrl = document.getElementById('igUrl').value.trim();
-        globalStore.settings.tikTokUrl = document.getElementById('tiktokUrl').value.trim();
-        applyGlobalUI();
-        await saveCloudData();
-      });
-
-      document.getElementById('btnResetToDefaultProducts').addEventListener('click', async () => {
-        if(!confirm('Reset entire online database to factory default javascript files?')) return;
-        globalStore.products = window.CartivaProducts || [];
-        renderProductsTable();
-        await saveCloudData();
+        const sData = {
+          logoUrl: document.getElementById('logoUrl').value.trim(),
+          waUrl: document.getElementById('waUrl').value.trim(),
+          fbUrl: document.getElementById('fbUrl').value.trim(),
+          igUrl: document.getElementById('igUrl').value.trim(),
+          tikTokUrl: document.getElementById('tiktokUrl').value.trim()
+        };
+        
+        try {
+          const token = localStorage.getItem('cartiva_admin_token') || '';
+          await fetch(API_URL + '/settings', {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(sData)
+          });
+          fetchCloudData();
+        } catch {
+          showToast('Failed to save settings');
+        }
       });
 
       document.getElementById('btnClearForm').addEventListener('click', () => {
         document.getElementById('pId').disabled = false;
       });
 
-      // --- ORIGINAL ACCOUNT SECURITY LOGIC RESTORED ---
-      const ACCOUNTS_STORAGE_KEY = 'cartiva_admin_accounts_v1';
+      // --- ACCOUNT SECURITY LOGIC ---
       const SESSION_STORAGE_KEY = 'cartiva_admin_session_v1';
-
-      function getAccounts() {
-        try {
-          const raw = localStorage.getItem(ACCOUNTS_STORAGE_KEY);
-          if (raw) return JSON.parse(raw);
-        } catch {}
-        return [{ username: 'admin', password: '123' }]; // Your exact original credential
-      }
 
       function checkSession() {
         try {
@@ -361,10 +374,7 @@
         const u = document.getElementById('adminUser').value.trim();
         const p = document.getElementById('adminPass').value.trim();
         
-        const accounts = getAccounts();
-        const found = accounts.find(a => a.username === u && a.password === p);
-
-        if (found) {
+        if (u === 'admin' && p === '123') {
           localStorage.setItem(SESSION_STORAGE_KEY, 'true');
           document.getElementById('loginSection').style.display = 'none';
           document.getElementById('adminPanel').style.display = 'block';
@@ -380,7 +390,6 @@
         document.getElementById('loginSection').style.display = 'block';
       });
 
-      // Toggle Password View
       document.getElementById('btnToggleLoginPassword').addEventListener('click', () => {
         const el = document.getElementById('adminPass');
         el.type = el.type === 'password' ? 'text' : 'password';
