@@ -125,13 +125,12 @@
 
   <script src="js/app.js"></script>
   <script>
-    // ডাইনামিক ইউআরএল এবং পাথ ভ্যালিডেশন
-    let base = window.location.origin;
-    if (base.includes('localhost') || base.includes('127.0.0.1')) {
-      base = 'https://cartiva-backend.vercel.app'; // লোকালহোস্টে টেস্ট করার জন্য ব্যাকএন্ড সেটআপ
-    }
-    window.CartivaApiBase = base;
-    const API_URL = window.CartivaApiBase + '/api/store';
+    // ডাইনামিক রিয়েল-টাইম এপিআই রুট হ্যান্ডলিং
+    const currentOrigin = window.location.origin;
+    // যদি প্রজেক্ট ভার্সেল বা অন্য ডোমেইনে হোস্ট করা থাকে, তবে কারেন্ট অরিজিনই হবে বেস ইউআরএল
+    window.CartivaApiBase = currentOrigin;
+    
+    const API_URL = `${window.CartivaApiBase}/api/store`;
 
     let liveProducts = [];
     let currentCart = [];
@@ -156,7 +155,7 @@
           liveProducts = store.products || [];
         }
       } catch(e) {
-        console.log("Store fetch offline backup active");
+        console.warn("Backend dynamic content fetching error, using local cart mapping.");
       }
       calculateAndRenderSummary();
     }
@@ -166,7 +165,7 @@
         currentCart = JSON.parse(localStorage.getItem('cartiva_cart_v1')) || [];
       } catch(e) { currentCart = []; }
 
-      const totalCount = currentCart.reduce((sum, item) => sum + (item.qty || 0), 0);
+      const totalCount = currentCart.reduce((sum, item) => sum + (item.qty || 1), 0);
       document.getElementById('cartCount').textContent = String(totalCount);
 
       if(currentCart.length === 0) {
@@ -206,7 +205,7 @@
 
     deliverySelect.addEventListener('change', calculateAndRenderSummary);
 
-    // মঙ্গুস স্কিমা অনুযায়ী ১০০% পিওর ডাটা সাবমিট লজিক
+    // মঙ্গুস স্কিমা স্ট্রাকচার অনুযায়ী পিওর ডাটাবেজ সাবমিশন লজিক
     document.getElementById('checkoutForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       
@@ -255,9 +254,9 @@
       };
 
       try {
-        showToast('Placing order directly to database...');
+        showToast('Sending order...');
         
-        const res = await fetch(window.CartivaApiBase + '/api/orders', {
+        const res = await fetch(`${window.CartivaApiBase}/api/orders`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(orderPayload)
@@ -266,17 +265,17 @@
         const data = await res.json();
 
         if(res.ok) {
-          showToast('Order success!');
+          showToast('Order Placed Successfully!');
           localStorage.removeItem('cartiva_cart_v1');
           setTimeout(() => {
-            alert(`Order Placed Success!\nOrder ID: ${data.orderId || (data.order && data.order.orderId) || 'SUCCESS'}`);
+            alert(`Order Successful!\nOrder ID: ${data.orderId || (data.order && data.order.orderId) || 'SUCCESS'}`);
             window.location.href = 'index.html';
           }, 500);
         } else {
-          alert('Failed: ' + (data.message || 'Server error structure'));
+          alert('Submission Rejected: ' + (data.message || 'Mongoose validation failed. Check schema fields.'));
         }
       } catch(err) {
-        alert('Network Connection Error: Could not connect to API server.');
+        alert('Network Connection Error: API Server is unreachable. Please verify that your backend server is active.');
       }
     });
 
