@@ -205,17 +205,25 @@
       async function fetchCloudData() {
         try {
           const res = await fetch(API_URL + '/store');
+          if (!res.ok) throw new Error('Failed to load /api/store');
           const data = await res.json();
           globalStore.products = data.products || [];
           globalStore.settings = data.settings || globalStore.settings;
-          
-          document.getElementById('cloudStatus').textContent = '⚡ Connected to Your MongoDB Database via Vercel';
-          document.getElementById('cloudStatus').style.color = '#22c55e';
+
+          // Clear the offline banner on successful load
+          const cloudStatus = document.getElementById('cloudStatus');
+          if (cloudStatus) cloudStatus.style.display = 'none';
+
           applyGlobalUI();
           renderProductsTable();
         } catch (e) {
-          document.getElementById('cloudStatus').textContent = '❌ Cloud Sync Failed. Offline mode active.';
-          document.getElementById('cloudStatus').style.color = '#ef4444';
+          // Keep the UI clean, but still render whatever we can.
+          console.error(e);
+          const cloudStatus = document.getElementById('cloudStatus');
+          if (cloudStatus) {
+            cloudStatus.textContent = '❌ Cloud Sync Failed. Offline mode active.';
+            cloudStatus.style.color = '#ef4444';
+          }
           if(window.CartivaProducts) globalStore.products = window.CartivaProducts;
           renderProductsTable();
         }
@@ -376,6 +384,10 @@
 
       const SESSION_STORAGE_KEY = 'cartiva_admin_session_v1';
 
+      // Clear any stale cloud status message as soon as the page JS boots
+      const cloudStatusEl = document.getElementById('cloudStatus');
+      if (cloudStatusEl) cloudStatusEl.style.display = 'none';
+
       function checkSession() {
         try {
           const active = localStorage.getItem(SESSION_STORAGE_KEY);
@@ -429,9 +441,9 @@
       async function fetchAdminOrders() {
         try {
           const token = localStorage.getItem('cartiva_admin_token') || '';
-          console.log('Admin token present?', !!token);
 
-          const res = await fetch(API_URL + '/admin/orders', {
+          // Relative endpoint (same domain on Vercel)
+          const res = await fetch('/api/admin/orders', {
             headers: { Authorization: `Bearer ${token}` },
           });
 
@@ -442,7 +454,6 @@
           }
 
           const data = await res.json();
-          console.log('orders fetched', (data?.orders || []).length);
           return data.orders || [];
         } catch (e) {
           console.warn('fetchAdminOrders exception', e);
