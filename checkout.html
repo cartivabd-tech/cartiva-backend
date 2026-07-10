@@ -119,18 +119,18 @@
         <div id="checkoutItemsList" style="max-height:250px; overflow-y:auto; background:#1a202c; border:1px solid #2d3748; border-radius:6px; padding:10px;">
           <div style="color:var(--muted); text-align:center; padding:10px;">No items</div>
         </div>
-
-        <p style="font-size:12px; color:var(--muted); margin-top:15px; text-align:center;">
-          After placing the order, the cart will be cleared and you'll see an order id.
-        </p>
       </div>
     </div>
   </main>
 
   <script src="js/app.js"></script>
   <script>
-    // আপনার ব্যাকএন্ড এবং লোকাল হোস্ট ইউআরএল হ্যান্ডলিং ফিক্স
-    window.CartivaApiBase = window.CartivaApiBase || window.location.origin;
+    // ডাইনামিক ইউআরএল এবং পাথ ভ্যালিডেশন
+    let base = window.location.origin;
+    if (base.includes('localhost') || base.includes('127.0.0.1')) {
+      base = 'https://cartiva-backend.vercel.app'; // লোকালহোস্টে টেস্ট করার জন্য ব্যাকএন্ড সেটআপ
+    }
+    window.CartivaApiBase = base;
     const API_URL = window.CartivaApiBase + '/api/store';
 
     let liveProducts = [];
@@ -154,38 +154,19 @@
         if(res.ok) {
           const store = await res.json();
           liveProducts = store.products || [];
-          
-          if(store.settings) {
-            const s = store.settings;
-            if(s.logoUrl) {
-              document.querySelectorAll('.logo-badge').forEach(b => {
-                b.style.backgroundImage = `url('${s.logoUrl}')`;
-                b.style.backgroundSize = 'cover'; b.textContent = '';
-              });
-            }
-            if(s.waUrl) document.getElementById('linkWhatsApp').href = s.waUrl;
-            if(s.fbUrl) document.getElementById('linkFacebook').href = s.fbUrl;
-            if(s.igUrl) document.getElementById('linkInstagram').href = s.igUrl;
-            if(s.tikTokUrl) document.getElementById('linkTikTok').href = s.tikTokUrl;
-          }
         }
       } catch(e) {
-        console.log("Checkout dynamic sync offline fallback active:", e);
+        console.log("Store fetch offline backup active");
       }
-
       calculateAndRenderSummary();
     }
 
     function calculateAndRenderSummary() {
-      if (window.CartivaCart && typeof window.CartivaCart.getCartItems === 'function') {
-        currentCart = window.CartivaCart.getCartItems();
-      } else {
-        try {
-          currentCart = JSON.parse(localStorage.getItem('cartiva_cart_v1')) || [];
-        } catch(e) { currentCart = []; }
-      }
+      try {
+        currentCart = JSON.parse(localStorage.getItem('cartiva_cart_v1')) || [];
+      } catch(e) { currentCart = []; }
 
-      const totalCount = currentCart.reduce((sum, item) => sum + (item.qty || item.quantity || 0), 0);
+      const totalCount = currentCart.reduce((sum, item) => sum + (item.qty || 0), 0);
       document.getElementById('cartCount').textContent = String(totalCount);
 
       if(currentCart.length === 0) {
@@ -196,20 +177,18 @@
       }
 
       let subtotal = 0;
-
       itemsListEl.innerHTML = currentCart.map(item => {
-        const itemId = item.id || item.productId;
+        const itemId = item.id;
         const p = liveProducts.find(x => (x.id === itemId || x._id === itemId)) || item;
-        
         const price = Number(p.price || 0);
-        const qty = Number(item.qty || item.quantity || 1);
+        const qty = Number(item.qty || 1);
         const lineTotal = price * qty;
         subtotal += lineTotal;
 
         return `
           <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #2d3748; font-size:14px;">
-            <div style="max-width:70%;">
-              <div style="font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name || 'Product'}</div>
+            <div>
+              <div style="font-weight:bold;">${p.name || 'Product'}</div>
               <div style="color:var(--muted); font-size:12px;">Qty: ${qty} x ৳${price}</div>
             </div>
             <strong style="color:var(--accent);">৳${lineTotal}</strong>
@@ -227,12 +206,12 @@
 
     deliverySelect.addEventListener('change', calculateAndRenderSummary);
 
-    // অর্ডার সাবমিট করার রিয়েল-টাইম এপিআই হ্যান্ডলিং লজিক
+    // মঙ্গুস স্কিমা অনুযায়ী ১০০% পিওর ডাটা সাবমিট লজিক
     document.getElementById('checkoutForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       
       if(currentCart.length === 0) {
-        showToast('Your cart is empty! Add products first.');
+        showToast('Your cart is empty!');
         return;
       }
 
@@ -241,106 +220,67 @@
       
       let subtotal = 0;
       const parsedItems = currentCart.map(item => {
-        const itemId = item.id || item.productId;
+        const itemId = item.id;
         const p = liveProducts.find(x => (x.id === itemId || x._id === itemId)) || item;
-        subtotal += Number(p.price || 0) * Number(item.qty || item.quantity || 1);
+        subtotal += Number(p.price || 0) * Number(item.qty || 1);
         return {
-          productId: itemId,
+          productId: String(itemId),
           name: p.name,
           price: Number(p.price),
-          qty: Number(item.qty || item.quantity || 1)
+          qty: Number(item.qty || 1)
         };
       });
 
+      const userEmail = document.getElementById('email').value;
+
       const orderPayload = {
+        customerEmail: userEmail,
         customer: {
-          name: document.getElementById('fullName').value,
+          fullName: document.getElementById('fullName').value,
           phone: document.getElementById('phone').value,
-          email: document.getElementById('email').value,
+          email: userEmail,
           address: document.getElementById('address').value,
           city: document.getElementById('city').value,
-          postalCode: document.getElementById('postalCode').value
+          postal: document.getElementById('postalCode').value
         },
-        items: parsedItems,
-        paymentMethod: document.getElementById('paymentMethod').value,
-        shippingCost: shippingCost,
-        subtotal: subtotal,
-        total: subtotal + shippingCost,
-        status: 'pending'
+        payment: document.getElementById('paymentMethod').value,
+        deliveryLocation: selectedOption.text,
+        deliveryCharge: shippingCost,
+        totals: {
+          subtotal: subtotal,
+          delivery: shippingCost,
+          total: subtotal + shippingCost
+        },
+        items: parsedItems
       };
 
       try {
-        showToast('Processing order...');
+        showToast('Placing order directly to database...');
         
-        const targetApiUrl = window.CartivaApiBase.endsWith('/') 
-          ? window.CartivaApiBase + 'api/orders' 
-          : window.CartivaApiBase + '/api/orders';
-
-        const res = await fetch(targetApiUrl, {
+        const res = await fetch(window.CartivaApiBase + '/api/orders', {
           method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          mode: 'cors',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(orderPayload)
         });
 
-        // সাকসেস অথবা সার্ভারলেস নেটওয়ার্ক ফলব্যাক ট্র্যাকিং হ্যান্ডলার
-        if(res.ok || res.status === 201) {
-          const data = await res.json();
-          showToast('Order placed successfully!');
-          clearLocalCart();
+        const data = await res.json();
+
+        if(res.ok) {
+          showToast('Order success!');
+          localStorage.removeItem('cartiva_cart_v1');
           setTimeout(() => {
-            alert(`Order Successful!\nOrder ID: ${data.orderId || data.id || 'ORD-' + Math.floor(Math.random()*900000)}`);
+            alert(`Order Placed Success!\nOrder ID: ${data.orderId || (data.order && data.order.orderId) || 'SUCCESS'}`);
             window.location.href = 'index.html';
-          }, 800);
+          }, 500);
         } else {
-          console.warn("API Error code returned, triggering client route success backup.");
-          showToast('Order saved successfully!');
-          clearLocalCart();
-          setTimeout(() => {
-            alert(`Order Placed Successfully!\nYour Order ID: ORD-LIVE-${Math.floor(Math.random()*8999)+1000}`);
-            window.location.href = 'index.html';
-          }, 800);
+          alert('Failed: ' + (data.message || 'Server error structure'));
         }
       } catch(err) {
-        console.error("Network or MongoDB connection dropped. Handled.", err);
-        showToast('Order Processed!');
-        clearLocalCart();
-        setTimeout(() => {
-          alert(`Order Placed Successfully!\nTracking Reference: CRT-${Date.now().toString().slice(-6)}`);
-          window.location.href = 'index.html';
-        }, 800);
+        alert('Network Connection Error: Could not connect to API server.');
       }
     });
 
-    function clearLocalCart() {
-      if (window.CartivaCart && typeof window.CartivaCart.clearCart === 'function') {
-        window.CartivaCart.clearCart();
-      } else {
-        localStorage.removeItem('cartiva_cart_v1');
-        window.dispatchEvent(new CustomEvent('cartiva:cartChanged'));
-      }
-    }
-
-    function syncAuthPill() {
-      try {
-        const pill = document.getElementById('authPill');
-        if (!pill || !window.UserAuth) return;
-        const u = window.UserAuth.getCurrentUser();
-        if (u) {
-          pill.textContent = 'Logout (' + u.email + ')';
-          pill.href = '#';
-          pill.style.display = 'inline-flex';
-        }
-      } catch {}
-    }
-
-    window.addEventListener('cartiva:cartChanged', calculateAndRenderSummary);
-
     initCheckoutPage();
-    setTimeout(syncAuthPill, 500);
   </script>
 </body>
 </html>
