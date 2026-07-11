@@ -17,7 +17,7 @@ const bcrypt = require('bcryptjs');
 const app = express();
 app.use(express.json({ limit: '2mb' }));
 
-app.use(express.static(__dirname));
+// 🛑 সেই অভিশপ্ত লাইনটি ডিলিট করা হয়েছে যাতে ফ্রন্টএন্ডের CSS/JS স্ট্যাটিক ফাইল উধাও না হয়!
 
 // ===== 🔓 CORS পলিসি সবার জন্য সম্পূর্ণ ওপেন করা হলো (ফিক্স) =====
 app.use(
