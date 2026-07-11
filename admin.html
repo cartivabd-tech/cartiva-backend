@@ -199,9 +199,10 @@
 
         function getAdminToken() { return localStorage.getItem('adminToken'); }
 
+        // ফিক্সড রুট: টোকেন না থাকলে সরাসরি নতুন অ্যাডমিন লগইন পেজে পাঠাবে
         function checkAuth() {
             const token = getAdminToken();
-            if (!token) { window.location.href = '/login.html'; }
+            if (!token) { window.location.href = '/admin-login.html'; }
         }
 
         function setOnlineStatus(isOnline, message = '') {
@@ -346,7 +347,7 @@
         refreshOrdersBtn.addEventListener('click', fetchOrders);
         logoutBtn.addEventListener('click', () => {
             localStorage.removeItem('adminToken');
-            window.location.href = '/login.html';
+            window.location.href = '/admin-login.html';
         });
 
         // Initialize
