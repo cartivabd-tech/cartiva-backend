@@ -1,201 +1,91 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cartiva - Login</title>
-  <link rel="stylesheet" href="css/style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cartiva Admin Login</title>
+    <style>
+        body {
+            margin: 0; padding: 0; font-family: Arial, sans-serif;
+            background-color: #0a1128; color: white;
+            display: flex; justify-content: center; align-items: center; height: 100vh;
+        }
+        .login-card {
+            background-color: #1c2541; padding: 40px; border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5); width: 100%; max-width: 400px;
+        }
+        h2 { margin-top: 0; color: #00b4d8; text-align: center; margin-bottom: 25px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; color: #cbd5e1; font-size: 0.9em; }
+        input {
+            width: 100%; padding: 12px; box-sizing: border-box;
+            background-color: #0b0c10; border: 1px solid #45f3ff33;
+            color: white; border-radius: 4px; outline: none;
+        }
+        button {
+            width: 100%; background-color: #00b4d8; color: white; border: none;
+            padding: 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 1em;
+            margin-top: 10px;
+        }
+        button:hover { opacity: 0.9; }
+        .error-msg { color: #e63946; font-size: 0.9em; text-align: center; margin-top: 15px; display: none; }
+    </style>
 </head>
 <body>
-  <div class="toast" id="toast"></div>
 
-  <div class="topbar">
-    <div class="container topbar-inner">
-      <div class="store"><div class="store-name">Cartiva</div></div>
-      <div class="topbar-links">
-        <a id="linkWhatsApp" class="topbar-link" href="#" target="_blank" rel="noreferrer"><span class="social-icon">📱</span>WhatsApp</a>
-        <span class="dot">•</span>
-        <a id="linkFacebook" class="topbar-link" href="#" target="_blank" rel="noreferrer"><span class="social-icon">📘</span>Facebook Page</a>
-        <span class="dot">•</span>
-        <a id="linkInstagram" class="topbar-link" href="#" target="_blank" rel="noreferrer"><span class="social-icon">📷</span>Instagram</a>
-        <span class="dot">•</span>
-        <a id="linkTikTok" class="topbar-link" href="#" target="_blank" rel="noreferrer"><span class="social-icon">🎵</span>TikTok</a>
-      </div>
-    </div>
-  </div>
-
-  <header class="header">
-    <div class="container header-inner">
-      <a class="logo" href="index.html">
-        <div class="logo-badge">C</div>
-        <div class="logo-title">Cartiva</div>
-      </a>
-      <nav class="nav">
-        <a class="pill" href="index.html">Shop</a>
-        <a class="pill" href="cart.html">Cart <span class="badge" id="cartCount">0</span></a>
-        <a class="pill" href="checkout.html">Checkout</a>
-      </nav>
-    </div>
-  </header>
-
-  <main class="container" style="padding:18px 0 28px">
-    <div class="cart-layout" style="grid-template-columns: 1fr 1fr;">
-      <section class="panel">
-        <h2 style="margin:0 0 10px; font-size:22px">Login</h2>
-        <form id="loginForm" novalidate>
-          <div class="field">
-            <div class="label">Email</div>
-            <input class="input" id="loginEmail" type="email" required placeholder="you@example.com" autocomplete="email" />
-          </div>
-          <div class="field password-field">
-            <div class="label">Password</div>
-            <input class="input" id="loginPassword" type="password" required placeholder="Your password" autocomplete="current-password" />
-            <button type="button" class="password-toggle" id="btnToggleLoginPassword">👁️</button>
-          </div>
-          <div class="admin-actions" style="margin-top:12px">
-            <button class="btn" type="submit">Login</button>
-          </div>
-          <div class="small" style="margin-top:10px;">No account? Use the Sign up panel.</div>
+    <div class="login-card">
+        <h2>Admin Login</h2>
+        <form id="loginForm">
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="username" required placeholder="Enter admin username">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="password" required placeholder="Enter password">
+            </div>
+            <button type="submit">Login</button>
         </form>
-      </section>
-
-      <section class="panel">
-        <h2 style="margin:0 0 10px; font-size:22px">Sign up</h2>
-        <form id="signupForm" novalidate>
-          <div class="field">
-            <div class="label">Email</div>
-            <input class="input" id="signupEmail" type="email" required placeholder="you@example.com" autocomplete="email" />
-          </div>
-          <div class="field password-field">
-            <div class="label">Password</div>
-            <input class="input" id="signupPassword" type="password" required placeholder="Create password" autocomplete="new-password" />
-            <button type="button" class="password-toggle" id="btnToggleSignupPassword">👁️</button>
-          </div>
-          <div class="admin-actions" style="margin-top:12px">
-            <button class="btn" type="submit">Create account</button>
-          </div>
-        </form>
-      </section>
+        <div id="errorMsg" class="error-msg"></div>
     </div>
 
-    <section class="panel" style="margin-top:14px">
-      <div class="note">
-        This site is fully client-side (no server). Login uses browser storage to keep customer accounts + session.
-      </div>
-      <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-        <a class="btn secondary" href="index.html" style="text-decoration:none">Back to shop</a>
-        <button class="btn secondary" type="button" id="btnLogout" style="display:none">Logout</button>
-      </div>
-    </section>
-  </main>
+    <script>
+        // ব্যাকএন্ডের মেইন এপিআই লিংক
+        const API_URL = 'https://cartiva-backend.vercel.app/api';
 
-  <script src="js/app.js"></script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errorMsg = document.getElementById('errorMsg');
+            errorMsg.style.display = 'none';
 
-  <script>
-    const toast = document.getElementById('toast');
-    function showToast(msg) {
-      toast.textContent = msg;
-      toast.classList.add('show');
-      clearTimeout(showToast._t);
-      showToast._t = setTimeout(() => toast.classList.remove('show'), 1500);
-    }
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
 
-    (function(){
-      try {
-        const WA_KEY='cartiva_whatsapp_url_v1';
-        const FB_KEY='cartiva_facebook_url_v1';
-        const IG_KEY='cartiva_instagram_url_v1';
-        const TK_KEY='cartiva_tiktok_url_v1';
-        const wa = localStorage.getItem(WA_KEY);
-        const fb = localStorage.getItem(FB_KEY);
-        const ig = localStorage.getItem(IG_KEY);
-        const tk = localStorage.getItem(TK_KEY);
-        if(wa) document.getElementById('linkWhatsApp').href = wa;
-        if(fb) document.getElementById('linkFacebook').href = fb;
-        if(ig) document.getElementById('linkInstagram').href = ig;
-        if(tk) document.getElementById('linkTikTok').href = tk;
-      } catch {}
+            try {
+                // আপনার ব্যাকএন্ডের মেইন অ্যাডমিন লগইন রাউটে হিট করা হচ্ছে
+                const res = await fetch(`${API_URL}/admin/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
 
-      try {
-        document.getElementById('cartCount').textContent = String(window.CartivaCart?.getCartCount?.() || 0);
-      } catch {}
-    })();
-  </script>
+                const data = await res.json();
 
-  <script>
-    function togglePassword(inputId) {
-      const el = document.getElementById(inputId);
-      return el.type === 'password' ? 'text' : 'password';
-    }
+                if (!res.ok) {
+                    throw new Error(data.error || 'Invalid credentials');
+                }
 
-    document.getElementById('btnToggleLoginPassword').addEventListener('click', () => {
-      const el = document.getElementById('loginPassword');
-      el.type = el.type === 'password' ? 'text' : 'password';
-    });
+                // লগইন সফল হলে ব্রাউজার মেমোরিতে টোকেন সেভ করবে
+                localStorage.setItem('adminToken', data.token);
+                
+                // টোকেন সেভ হওয়ার পর সাকসেসফুলি অ্যাডমিন ড্যাশবোর্ডে নিয়ে যাবে
+                window.location.href = '/admin.html';
 
-    document.getElementById('btnToggleSignupPassword').addEventListener('click', () => {
-      const el = document.getElementById('signupPassword');
-      el.type = el.type === 'password' ? 'text' : 'password';
-    });
-
-    const btnLogout = document.getElementById('btnLogout');
-
-    function syncAuthUI() {
-      const u = window.UserAuth?.getCurrentUser?.();
-      btnLogout.style.display = u ? 'inline-flex' : 'none';
-    }
-
-    btnLogout.addEventListener('click', () => {
-      window.UserAuth.logout();
-      syncAuthUI();
-      showToast('Logged out');
-      document.getElementById('loginForm').reset();
-      document.getElementById('signupForm').reset();
-    });
-
-    document.getElementById('loginForm').addEventListener('submit', (e) => {
-      e.preventDefault();
-      const email = document.getElementById('loginEmail').value.trim().toLowerCase();
-      const password = document.getElementById('loginPassword').value;
-
-      try {
-        const ok = window.UserAuth.login(email, password);
-        if (ok) {
-          showToast('Login successful');
-          syncAuthUI();
-          // go back to checkout (if coming from it) otherwise home
-          const returnTo = new URLSearchParams(location.search).get('returnTo');
-          location.href = returnTo || 'checkout.html';
-        } else {
-          showToast('Invalid email or password');
-        }
-      } catch {
-        showToast('Login failed');
-      }
-    });
-
-    document.getElementById('signupForm').addEventListener('submit', (e) => {
-      e.preventDefault();
-      const email = document.getElementById('signupEmail').value.trim().toLowerCase();
-      const password = document.getElementById('signupPassword').value;
-
-      try {
-        const result = window.UserAuth.register(email, password);
-        if (result && result.ok) {
-          showToast('Account created. Please login.');
-          document.getElementById('loginEmail').value = email;
-          document.getElementById('loginPassword').value = password;
-          document.getElementById('signupForm').reset();
-        } else {
-          showToast(result?.error || 'Sign up failed');
-        }
-      } catch {
-        showToast('Sign up failed');
-      }
-    });
-
-    syncAuthUI();
-  </script>
+            } catch (err) {
+                errorMsg.innerText = err.message;
+                errorMsg.style.display = 'block';
+            }
+        });
+    </script>
 </body>
 </html>
-
