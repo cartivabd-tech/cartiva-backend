@@ -3,8 +3,6 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
-// const path = require('path'); // unused (removed)
-
 
 const { authAdmin, authCustomer } = require('./middleware/auth');
 const Settings = require('./models/Settings');
@@ -19,45 +17,21 @@ const bcrypt = require('bcryptjs');
 const app = express();
 app.use(express.json({ limit: '2mb' }));
 
-// ফ্রন্টএন্ড বা অ্যাডমিন প্যানেলের স্ট্যাটিক ফাইলগুলো (HTML, CSS, JS) সার্ভ করার জন্য
-// আপনার admin.html বা index.html যদি রুট ফোল্ডারেই থাকে, তবে এটি কাজ করবে
 app.use(express.static(__dirname));
 
-function buildCorsOptions(req, callback) {
-  // Allow multiple origins: ORIGIN="https://a.com,https://b.com"
-  const raw = process.env.ORIGIN || '';
-  const allowedOrigins = raw
-    .split(',')
-    .map(s => s.trim())
-    .filter(Boolean);
-
-  // If ORIGIN is not set, fall back to permissive mode
-  // (useful for local dev; replace with explicit ORIGIN in production).
-  const isPermissive = allowedOrigins.length === 0;
-
-  const reqOrigin = req.header('Origin');
-
-  if (isPermissive) return callback(null, { origin: true });
-  if (!reqOrigin) return callback(null, { origin: false });
-  if (allowedOrigins.includes(reqOrigin)) {
-    return callback(null, { origin: true });
-  }
-
-  return callback(null, { origin: false });
-}
-
+// ===== 🔓 CORS পলিসি সবার জন্য সম্পূর্ণ ওপেন করা হলো (ফিক্স) =====
 app.use(
   cors({
-    origin: buildCorsOptions,
+    origin: '*',
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
 
-// Ensure CORS preflight works reliably on mobile browsers
+// প্রি-ফ্লাইট (OPTIONS) রিকোয়েস্ট যেন মোবাইল বা পিসিতে ব্লক না হয়
 app.options('*', cors({
-  origin: buildCorsOptions,
+  origin: '*',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -85,29 +59,23 @@ async function connectToDatabase() {
     throw new Error('MONGODB_URI missing in environment variables');
   }
 
-  // If connection is already established, don't reconnect.
   if (mongoose.connection.readyState === 1) return;
-
   if (cached.connPromise) return cached.connPromise;
 
   cached.connPromise = (async () => {
     try {
       console.log('Connecting to MongoDB...');
-
-      // Options tuned to prevent long hangs and improve failure clarity
       await mongoose.connect(mongoUri, {
         serverSelectionTimeoutMS: Number(process.env.MONGODB_SERVER_SELECTION_TIMEOUT_MS || 10000),
         socketTimeoutMS: Number(process.env.MONGODB_SOCKET_TIMEOUT_MS || 20000),
       });
 
       console.log('MongoDB connected');
-
       await ensureAdmin();
 
       const settings = await Settings.findOne({});
       if (!settings) await Settings.create({});
     } catch (err) {
-      // Important: allow future retries (do not keep a rejected promise forever)
       cached.connPromise = null;
       console.error('MongoDB connection failed:', err);
       throw err;
@@ -117,7 +85,7 @@ async function connectToDatabase() {
   return cached.connPromise;
 }
 
-// Connect to DB only for API routes (avoid blocking static file requests)
+// Connect to DB only for API routes
 app.use('/api', async (req, res, next) => {
   try {
     await connectToDatabase();
@@ -128,10 +96,7 @@ app.use('/api', async (req, res, next) => {
   }
 });
 
-
-
-// Root route (Vercel home endpoint)
-
+// Root route
 app.get('/', (req, res) => {
   res.send('Cartiva Backend Server is Running Perfectly!');
 });
@@ -244,7 +209,6 @@ app.get('/api/store', async (req, res) => {
   }
 });
 
-// Admin-only: must have Bearer admin token
 app.post('/api/products', authAdmin, async (req, res) => {
   try {
     const p = req.body || {};
@@ -364,13 +328,10 @@ app.get('/api/admin/orders', authAdmin, async (req, res) => {
   }
 });
 
-// লোকাল ডেভেলপমেন্ট এবং ক্লাউড ওয়ার্মআপের জন্য
 if (process.env.MONGODB_URI) {
   connectToDatabase().catch(() => {});
 }
 
-
-// Standalone Local development server listener
 if (require.main === module) {
   app.listen(PORT, async () => {
     try {
