@@ -50,7 +50,8 @@
     </div>
 
     <script>
-        const API_URL = 'https://cartiva-backend.vercel.app/api';
+        const API_URL = (window.CartivaApiBase || 'https://cartiva-backend.vercel.app') + '/api';
+
 
         document.getElementById('customerLoginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -76,9 +77,10 @@
                 const data = await res.json();
                 if (!res.ok || !data.ok) throw new Error(data.error || 'Invalid email or password');
 
-                // টোকেন রিসিভ করে কাস্টমার লোকাল স্টোরেজে সেট করা
-                localStorage.setItem('customerToken', data.token);
+                // token store aligned with js/app.js (cartiva_customer_session_v2)
+                localStorage.setItem('cartiva_customer_session_v2', JSON.stringify({ token: data.token, email: data.user?.email || email }));
                 window.location.href = '/index.html';
+
 
             } catch (err) {
                 errorMsg.innerText = err.message;

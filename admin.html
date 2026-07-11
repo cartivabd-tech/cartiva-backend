@@ -215,9 +215,10 @@
         </div>
     </div>
 
-    <script>
-        const API_URL = 'https://cartiva-backend.vercel.app/api'; 
+<script>
+        const API_URL = (window.CartivaApiBase || 'https://cartiva-backend.vercel.app') + '/api';
         let localProducts = [];
+
 
         const syncStatus = document.getElementById('syncStatus');
         const productForm = document.getElementById('productForm');
