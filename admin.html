@@ -36,6 +36,8 @@
         }
         .status-banner.success { background-color: var(--success-color); }
         .status-banner.error { background-color: var(--error-color); }
+        
+        /* ড্যাশবোর্ড কন্টেইনার (লগইন না থাকলে স্ক্রিপ্ট দিয়ে হাইড করা হবে) */
         .container {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -66,121 +68,151 @@
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #3a506b; }
         th { background-color: #0b0c10; color: var(--accent-color); }
         .badge { background: var(--success-color); padding: 3px 8px; border-radius: 4px; font-size: 0.8em; }
-        .status-pill { padding: 4px 8px; border-radius: 20px; font-size: 0.85em; font-weight: bold; text-transform: capitalize; }
-        .status-pending { background-color: #f4a261; color: black; }
-        .btn-delete { background-color: var(--error-color); padding: 5px 10px; font-size: 0.85em; }
-        .btn-edit { background-color: #f4a261; padding: 5px 10px; font-size: 0.85em; margin-right: 5px; color: black; }
+        
+        /* 🔐 ইন-লাইন অ্যাডমিন লগইন ওভারলে ডিজাইন (রঙ ও স্টাইল ম্যাচিং) */
+        .admin-login-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--bg-color);
+            display: flex; justify-content: center; align-items: center; z-index: 9999;
+        }
+        .login-card {
+            background-color: var(--card-bg); padding: 40px; border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5); width: 100%; max-width: 400px;
+        }
+        .login-card h2 { text-align: center; margin-bottom: 25px; }
+        .login-card button { width: 100%; margin-top: 10px; }
+        .error-msg { color: var(--error-color); font-size: 0.9em; text-align: center; margin-top: 15px; display: none; }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <h1>Cartiva Admin Panel</h1>
-        <div>
-            <button id="refreshOrdersBtn" style="margin-right: 10px; background-color: var(--success-color);">Refresh Orders</button>
-            <button id="logoutBtn" style="background-color: var(--error-color);">Logout</button>
+    <div id="adminLoginOverlay" class="admin-login-overlay" style="display: none;">
+        <div class="login-card">
+            <h2>Admin Security Login</h2>
+            <form id="adminLoginForm">
+                <div class="form-group">
+                    <label>Admin Username</label>
+                    <input type="text" id="adminUsername" required placeholder="Enter admin username">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="adminPassword" required placeholder="Enter admin password">
+                </div>
+                <button type="submit">Unlock Dashboard</button>
+            </form>
+            <div id="loginErrorMsg" class="error-msg"></div>
         </div>
     </div>
 
-    <div id="syncStatus" class="status-banner error">❌ Checking Cloud Sync...</div>
-
-    <div class="container">
-        <div class="card">
-            <h2>Product Manager</h2>
-            <form id="productForm">
-                <div class="form-group">
-                    <label>Product ID (unique)</label>
-                    <input type="text" id="prodId" required placeholder="e.g., p1">
-                </div>
-                <div class="form-group">
-                    <label>Name</label>
-                    <input type="text" id="prodName" required placeholder="Product Name">
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Original Price</label>
-                        <input type="number" id="prodOriginalPrice" step="0.01" placeholder="16.99">
-                    </div>
-                    <div class="form-group">
-                        <label>Discount Price</label>
-                        <input type="number" id="prodPrice" step="0.01" required placeholder="12.99">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Stock Status</label>
-                        <select id="prodStock">
-                            <option value="In Stock">In Stock</option>
-                            <option value="Out of Stock">Out of Stock</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Delivery Option</label>
-                        <select id="prodDelivery">
-                            <option value="Delivery Include">Delivery Include</option>
-                            <option value="Delivery Charge Extra">Delivery Charge Extra</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Category</label>
-                    <select id="prodCategory">
-                        <option value="HeadPhone">HeadPhone</option>
-                        <option value="Watch">Watch</option>
-                        <option value="Gadget">Gadget</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Description</label>
-                    <textarea id="prodDesc" rows="3" required></textarea>
-                </div>
-                <div class="form-group">
-                    <label>Main Image URL</label>
-                    <input type="text" id="prodImage" placeholder="https://...">
-                </div>
-                <div class="form-group">
-                    <label>Gallery Image URLs (Comma separated)</label>
-                    <input type="text" id="prodImages" placeholder="url1, url2, url3">
-                </div>
-                <button type="submit" style="width: 100%;">Save Product</button>
-            </form>
+    <div id="mainDashboardWrapper">
+        <div class="header">
+            <h1>Cartiva Admin Panel</h1>
+            <div>
+                <button id="refreshOrdersBtn" style="margin-right: 10px; background-color: var(--success-color);">Refresh Orders</button>
+                <button id="logoutBtn" style="background-color: var(--error-color);">Logout</button>
+            </div>
         </div>
 
-        <div class="card">
-            <h2>Orders List</h2>
-            <div style="max-height: 300px; overflow-y: auto;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Order ID</th>
-                            <th>Customer</th>
-                            <th>Total</th>
-                            <th>Items</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="ordersTableBody">
-                        <tr><td colspan="5" style="text-align:center;">Loading orders...</td></tr>
-                    </tbody>
-                </table>
+        <div id="syncStatus" class="status-banner error">❌ Checking Cloud Sync...</div>
+
+        <div class="container">
+            <div class="card">
+                <h2>Product Manager</h2>
+                <form id="productForm">
+                    <div class="form-group">
+                        <label>Product ID (unique)</label>
+                        <input type="text" id="prodId" required placeholder="e.g., p1">
+                    </div>
+                    <div class="form-group">
+                        <label>Name</label>
+                        <input type="text" id="prodName" required placeholder="Product Name">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Original Price</label>
+                            <input type="number" id="prodOriginalPrice" step="0.01" placeholder="16.99">
+                        </div>
+                        <div class="form-group">
+                            <label>Discount Price</label>
+                            <input type="number" id="prodPrice" step="0.01" required placeholder="12.99">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Stock Status</label>
+                            <select id="prodStock">
+                                <option value="In Stock">In Stock</option>
+                                <option value="Out of Stock">Out of Stock</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Delivery Option</label>
+                            <select id="prodDelivery">
+                                <option value="Delivery Include">Delivery Include</option>
+                                <option value="Delivery Charge Extra">Delivery Charge Extra</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Category</label>
+                        <select id="prodCategory">
+                            <option value="HeadPhone">HeadPhone</option>
+                            <option value="Watch">Watch</option>
+                            <option value="Gadget">Gadget</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea id="prodDesc" rows="3" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Main Image URL</label>
+                        <input type="text" id="prodImage" placeholder="https://...">
+                    </div>
+                    <div class="form-group">
+                        <label>Gallery Image URLs (Comma separated)</label>
+                        <input type="text" id="prodImages" placeholder="url1, url2, url3">
+                    </div>
+                    <button type="submit" style="width: 100%;">Save Product</button>
+                </form>
             </div>
 
-            <h2 style="margin-top: 30px;">Existing Live Products</h2>
-            <div style="max-height: 300px; overflow-y: auto;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Name</th>
-                            <th>Price</th>
-                            <th>Stock</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="productsTableBody">
-                        <tr><td colspan="5" style="text-align:center;">Loading products...</td></tr>
-                    </tbody>
-                </table>
+            <div class="card">
+                <h2>Orders List</h2>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Customer</th>
+                                <th>Total</th>
+                                <th>Items</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ordersTableBody">
+                            <tr><td colspan="5" style="text-align:center;">Loading orders...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h2 style="margin-top: 30px;">Existing Live Products</h2>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Price</th>
+                                <th>Stock</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productsTableBody">
+                            <tr><td colspan="5" style="text-align:center;">Loading products...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -195,14 +227,57 @@
         const ordersTableBody = document.getElementById('ordersTableBody');
         const refreshOrdersBtn = document.getElementById('refreshOrdersBtn');
         const logoutBtn = document.getElementById('logoutBtn');
+        
+        const adminLoginOverlay = document.getElementById('adminLoginOverlay');
+        const mainDashboardWrapper = document.getElementById('mainDashboardWrapper');
+        const adminLoginForm = document.getElementById('adminLoginForm');
+        const loginErrorMsg = document.getElementById('loginErrorMsg');
 
         function getAdminToken() { return localStorage.getItem('adminToken'); }
 
-        // আপনার এক্সিস্টিং লগইন পেজেই রিডাইরেক্ট করবে
+        // 🛡️ নতুন রিডাইরেক্ট-লেস অথ গেটওয়ে লজিক
         function checkAuth() {
             const token = getAdminToken();
-            if (!token) { window.location.href = '/login.html'; }
+            if (!token) {
+                adminLoginOverlay.style.display = 'flex';
+                mainDashboardWrapper.style.style.pointerEvents = 'none';
+                mainDashboardWrapper.style.opacity = '0.1';
+            } else {
+                adminLoginOverlay.style.display = 'none';
+                mainDashboardWrapper.style.pointerEvents = 'auto';
+                mainDashboardWrapper.style.opacity = '1';
+                // টোকেন থাকলে ডাটা ফেচ শুরু করবে
+                fetchStoreData();
+                fetchOrders();
+            }
         }
+
+        // 🔐 ইন-পেজ অ্যাডমিন লগইন সাবমিট হ্যান্ডলার
+        adminLoginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            loginErrorMsg.style.display = 'none';
+            const username = document.getElementById('adminUsername').value.trim();
+            const password = document.getElementById('adminPassword').value;
+
+            try {
+                const res = await fetch(`${API_URL}/admin/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                
+                if (res.ok && data.token) {
+                    localStorage.setItem('adminToken', data.token);
+                    checkAuth(); // ড্যাশবোর্ড আনলক করবে
+                } else {
+                    throw new Error(data.error || 'Invalid admin credentials');
+                }
+            } catch (err) {
+                loginErrorMsg.innerText = err.message;
+                loginErrorMsg.style.display = 'block';
+            }
+        });
 
         function setOnlineStatus(isOnline, message = '') {
             if (isOnline) {
@@ -346,13 +421,11 @@
         refreshOrdersBtn.addEventListener('click', fetchOrders);
         logoutBtn.addEventListener('click', () => {
             localStorage.removeItem('adminToken');
-            window.location.href = '/login.html';
+            checkAuth(); // লগআউট করলে আবার সিকিউরিটি লক স্ক্রিন চলে আসবে
         });
 
         // Initialize
         checkAuth();
-        fetchStoreData();
-        fetchOrders();
     </script>
 </body>
 </html>

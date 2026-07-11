@@ -61,19 +61,23 @@
             const password = document.getElementById('password').value;
 
             try {
-                // কাস্টমার লগইন এন্ডপয়েন্ট (/api/auth/login)
                 const res = await fetch(`${API_URL}/auth/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password })
                 });
 
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || 'Invalid email or password');
+                // রেসপন্স টাইপ চেক করা যাতে HTML আসলে ক্র্যাশ না করে JSON এরর দেখায়
+                const contentType = res.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) {
+                    throw new Error("Server returned an invalid response. Please try again.");
+                }
 
-                // কাস্টমার টোকেন সেভ করা
+                const data = await res.json();
+                if (!res.ok || !data.ok) throw new Error(data.error || 'Invalid email or password');
+
+                // টোকেন রিসিভ করে কাস্টমার লোকাল স্টোরেজে সেট করা
                 localStorage.setItem('customerToken', data.token);
-                // কাস্টমার লগইন শেষে মেইন শপ পেজে চলে যাবে
                 window.location.href = '/index.html';
 
             } catch (err) {
