@@ -3,7 +3,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
-const path = require('path'); // পাথ হ্যান্ডেল করার জন্য নতুন যুক্ত করা হয়েছে
+// const path = require('path'); // unused (removed)
+
 
 const { authAdmin, authCustomer } = require('./middleware/auth');
 const Settings = require('./models/Settings');
@@ -66,22 +67,6 @@ const PORT = process.env.PORT || 3000;
 
 // Serverless-safe cached connection
 let cached = { connPromise: null };
-async function connectToDatabase() {
-  if (cached.connPromise) return cached.connPromise;
-
-  const mongoUri = process.env.MONGODB_URI;
-  if (!mongoUri) throw new Error('MONGODB_URI missing in environmental variables');
-
-  cached.connPromise = (async () => {
-    await mongoose.connect(mongoUri);
-    await ensureAdmin();
-
-    const settings = await Settings.findOne({});
-    if (!settings) await Settings.create({});
-  })();
-
-  return cached.connPromise;
-}
 
 async function ensureAdmin() {
   const adminUsername = process.env.ADMIN_USERNAME || 'admin';
@@ -94,8 +79,46 @@ async function ensureAdmin() {
   }
 }
 
-// Vercel-এর প্রত্যেকটি রিকোয়েস্টে যেন ডাটাবেজ কানেক্টেড থাকে তা নিশ্চিত করা
-app.use(async (req, res, next) => {
+async function connectToDatabase() {
+  const mongoUri = process.env.MONGODB_URI;
+  if (!mongoUri) {
+    throw new Error('MONGODB_URI missing in environment variables');
+  }
+
+  // If connection is already established, don't reconnect.
+  if (mongoose.connection.readyState === 1) return;
+
+  if (cached.connPromise) return cached.connPromise;
+
+  cached.connPromise = (async () => {
+    try {
+      console.log('Connecting to MongoDB...');
+
+      // Options tuned to prevent long hangs and improve failure clarity
+      await mongoose.connect(mongoUri, {
+        serverSelectionTimeoutMS: Number(process.env.MONGODB_SERVER_SELECTION_TIMEOUT_MS || 10000),
+        socketTimeoutMS: Number(process.env.MONGODB_SOCKET_TIMEOUT_MS || 20000),
+      });
+
+      console.log('MongoDB connected');
+
+      await ensureAdmin();
+
+      const settings = await Settings.findOne({});
+      if (!settings) await Settings.create({});
+    } catch (err) {
+      // Important: allow future retries (do not keep a rejected promise forever)
+      cached.connPromise = null;
+      console.error('MongoDB connection failed:', err);
+      throw err;
+    }
+  })();
+
+  return cached.connPromise;
+}
+
+// Connect to DB only for API routes (avoid blocking static file requests)
+app.use('/api', async (req, res, next) => {
   try {
     await connectToDatabase();
     next();
@@ -105,7 +128,10 @@ app.use(async (req, res, next) => {
   }
 });
 
+
+
 // Root route (Vercel home endpoint)
+
 app.get('/', (req, res) => {
   res.send('Cartiva Backend Server is Running Perfectly!');
 });
@@ -342,6 +368,7 @@ app.get('/api/admin/orders', authAdmin, async (req, res) => {
 if (process.env.MONGODB_URI) {
   connectToDatabase().catch(() => {});
 }
+
 
 // Standalone Local development server listener
 if (require.main === module) {

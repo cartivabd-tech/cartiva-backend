@@ -1,17 +1,13 @@
-# TODO (Cartiva) — Vercel + MongoDB production fixes
+# TODO
 
-## Backend (server/)
-- [x] Fix Mongo connection handling for Vercel serverless cold starts (cache connection/promise; avoid race conditions).
-- [x] Remove insecure auth bypass for `/api/products` and `/api/products/:id` and `/api/settings` (require Bearer admin token).
-- [x] Fix/standardize `/api/products` & `/api/settings` so auth middleware is always enforced.
-- [ ] Ensure `/api/orders` request validation matches Mongoose `Order` schema.
+- [ ] Review server MongoDB connection code in `server/index.js` and identify connection-blocking / retry issues
+- [x] Refactor `connectToDatabase()` to be retry-safe (clear cached promise on failure)
 
+- [x] Add Mongoose connection timeouts/options for clearer failure modes
 
-## Frontend
-- [ ] Fix `checkout.html` broken/duplicated inline JS: currently it seems to include order form logic directly and may be corrupted.
-- [ ] Ensure checkout JS sends payload fields that match backend Order schema.
+- [x] Avoid blocking *every* request with DB connection (limit middleware to API routes / health)
 
-## Config
-- [ ] Ensure required env vars documented: `MONGODB_URI`, `JWT_SECRET`, `ORIGIN`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`.
-- [ ] Confirm `vercel.json` routing works for `/api/*`.
+- [ ] Ensure `/api/health` returns meaningful status
+- [ ] Run local tests: `cd server && npm install && npm start`
+- [ ] Validate endpoints: `GET /api/health`, auth routes, product/admin routes
 
