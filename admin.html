@@ -186,7 +186,6 @@
     </div>
 
     <script>
-        // ===== CONFIGURATION =====
         const API_URL = 'https://cartiva-backend.vercel.app/api'; 
         let localProducts = [];
 
@@ -199,10 +198,10 @@
 
         function getAdminToken() { return localStorage.getItem('adminToken'); }
 
-        // ফিক্সড রুট: টোকেন না থাকলে সরাসরি নতুন অ্যাডমিন লগইন পেজে পাঠাবে
+        // আপনার এক্সিস্টিং লগইন পেজেই রিডাইরেক্ট করবে
         function checkAuth() {
             const token = getAdminToken();
-            if (!token) { window.location.href = '/admin-login.html'; }
+            if (!token) { window.location.href = '/login.html'; }
         }
 
         function setOnlineStatus(isOnline, message = '') {
@@ -338,7 +337,7 @@
                     <td>${o.customer?.fullName || 'N/A'}</td>
                     <td>$${o.totals?.total || 0}</td>
                     <td>${o.items ? o.items.length : 0} items</td>
-                    <td><span class="status-pill status-pending">${o.status || 'Pending'}</span></td>
+                    <td><span class="badge">${o.status || 'Pending'}</span></td>
                 `;
                 ordersTableBody.appendChild(tr);
             });
@@ -347,7 +346,7 @@
         refreshOrdersBtn.addEventListener('click', fetchOrders);
         logoutBtn.addEventListener('click', () => {
             localStorage.removeItem('adminToken');
-            window.location.href = '/admin-login.html';
+            window.location.href = '/login.html';
         });
 
         // Initialize
