@@ -139,11 +139,19 @@ app.get('/', (req, res) => {
 app.get('/api/health', async (req, res) => {
   try {
     await connectToDatabase();
-    res.json({ ok: true, hasOrders: true });
+    res.json({
+      ok: true,
+      mongooseReadyState: mongoose.connection.readyState,
+    });
   } catch (e) {
-    res.status(500).json({ ok: false });
+    res.status(500).json({
+      ok: false,
+      mongooseReadyState: mongoose.connection?.readyState ?? 0,
+      error: 'Database connection failed',
+    });
   }
 });
+
 
 // ===== Auth (Customer) =====
 app.post('/api/auth/register', async (req, res) => {
