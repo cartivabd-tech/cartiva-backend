@@ -87,8 +87,22 @@ async function ensureAdmin() {
 async function connectToDatabase() {
   const mongoUri = process.env.MONGODB_URI;
   if (!mongoUri) {
+    console.error('[DB] MONGODB_URI missing');
     throw new Error('MONGODB_URI missing in environment variables');
   }
+
+  // Helpful logging (mask credentials in case URI includes them)
+  try {
+    const masked = mongoUri.replace(/(mongodb\+srv:\/\/)(.*?:.*?@)/, '$1****@');
+    const host = (() => {
+      const m = masked.match(/@([^/?]+)/);
+      return m?.[1] || 'unknown-host';
+    })();
+    console.log('[DB] Connecting to', host);
+  } catch {
+    // ignore masking/logging failures
+  }
+
 
   // If connection is already established, don't reconnect.
   if (mongoose.connection.readyState === 1) return;
