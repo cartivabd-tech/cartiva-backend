@@ -216,13 +216,16 @@
   }
 
   window.UserAuth = {
-    register,
-    login,
-    logout,
-    getCurrentUser,
-    getToken() {
+        register,
+        login,
+        logout,
+        getCurrentUser,
+        getToken() {
       return getSession()?.token || null;
     },
   };
 })();
+
+
+
 

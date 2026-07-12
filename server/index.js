@@ -186,7 +186,11 @@ app.post('/api/auth/register', async (req, res) => {
     if (exists) return res.status(409).json({ error: 'Email already exists' });
 
     const passwordHash = await bcrypt.hash(pw, 10);
-    const user = await User.create({ email: e, passwordHash });
+    const user = await User.create({
+      email: e,
+      passwordHash,
+      authProvider: 'password',
+    });
 
     res.json({ ok: true, user: { id: user._id.toString(), email: user.email } });
   } catch (err) {
@@ -204,6 +208,10 @@ app.post('/api/auth/login', async (req, res) => {
     const user = await User.findOne({ email: e });
     if (!user) return res.status(401).json({ error: 'Invalid email or password' });
 
+    if (!user.passwordHash) {
+      return res.status(401).json({ error: 'This account is registered using Google. Please use Google Sign-In.' });
+    }
+
     const ok = await bcrypt.compare(pw, user.passwordHash);
     if (!ok) return res.status(401).json({ error: 'Invalid email or password' });
 
@@ -213,6 +221,7 @@ app.post('/api/auth/login', async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
 
 app.post('/api/auth/google', async (req, res) => {
   try {
