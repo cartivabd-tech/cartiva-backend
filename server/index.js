@@ -3,6 +3,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+// const path = require('path'); // unused (removed)
+
 
 const { authAdmin, authCustomer } = require('./middleware/auth');
 const Settings = require('./models/Settings');
@@ -11,27 +13,56 @@ const Order = require('./models/Order');
 const User = require('./models/User');
 const Admin = require('./models/Admin');
 
-const { signToken } = require('./utils/jwt');
+const { signToken, verifyToken } = require('./utils/jwt');
 const bcrypt = require('bcryptjs');
+const { OAuth2Client } = require('google-auth-library');
+
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+const jwt = require('jsonwebtoken');
 
 const app = express();
 app.use(express.json({ limit: '2mb' }));
 
-// 🛑 সেই অভিশপ্ত লাইনটি ডিলিট করা হয়েছে যাতে ফ্রন্টএন্ডের CSS/JS স্ট্যাটিক ফাইল উধাও না হয়!
+// ফ্রন্টএন্ড বা অ্যাডমিন প্যানেলের স্ট্যাটিক ফাইলগুলো (HTML, CSS, JS) সার্ভ করার জন্য
+// আপনার admin.html বা index.html যদি রুট ফোল্ডারেই থাকে, তবে এটি কাজ করবে
+app.use(express.static(__dirname));
 
-// ===== 🔓 CORS পলিসি সবার জন্য সম্পূর্ণ ওপেন করা হলো (ফিক্স) =====
+function buildCorsOptions(req, callback) {
+  // Allow multiple origins: ORIGIN="https://a.com,https://b.com"
+  const raw = process.env.ORIGIN || '';
+  const allowedOrigins = raw
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  // If ORIGIN is not set, fall back to permissive mode
+  // (useful for local dev; replace with explicit ORIGIN in production).
+  const isPermissive = allowedOrigins.length === 0;
+
+  const reqOrigin = req.header('Origin');
+
+  if (isPermissive) return callback(null, { origin: true });
+  if (!reqOrigin) return callback(null, { origin: false });
+  if (allowedOrigins.includes(reqOrigin)) {
+    return callback(null, { origin: true });
+  }
+
+  return callback(null, { origin: false });
+}
+
 app.use(
   cors({
-    origin: '*',
+    origin: buildCorsOptions,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
 
-// প্রি-ফ্লাইট (OPTIONS) রিকোয়েস্ট যেন মোবাইল বা পিসিতে ব্লক না হয়
+// Ensure CORS preflight works reliably on mobile browsers
 app.options('*', cors({
-  origin: '*',
+  origin: buildCorsOptions,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -59,23 +90,29 @@ async function connectToDatabase() {
     throw new Error('MONGODB_URI missing in environment variables');
   }
 
+  // If connection is already established, don't reconnect.
   if (mongoose.connection.readyState === 1) return;
+
   if (cached.connPromise) return cached.connPromise;
 
   cached.connPromise = (async () => {
     try {
       console.log('Connecting to MongoDB...');
+
+      // Options tuned to prevent long hangs and improve failure clarity
       await mongoose.connect(mongoUri, {
         serverSelectionTimeoutMS: Number(process.env.MONGODB_SERVER_SELECTION_TIMEOUT_MS || 10000),
         socketTimeoutMS: Number(process.env.MONGODB_SOCKET_TIMEOUT_MS || 20000),
       });
 
       console.log('MongoDB connected');
+
       await ensureAdmin();
 
       const settings = await Settings.findOne({});
       if (!settings) await Settings.create({});
     } catch (err) {
+      // Important: allow future retries (do not keep a rejected promise forever)
       cached.connPromise = null;
       console.error('MongoDB connection failed:', err);
       throw err;
@@ -85,7 +122,7 @@ async function connectToDatabase() {
   return cached.connPromise;
 }
 
-// Connect to DB only for API routes
+// Connect to DB only for API routes (avoid blocking static file requests)
 app.use('/api', async (req, res, next) => {
   try {
     await connectToDatabase();
@@ -96,7 +133,10 @@ app.use('/api', async (req, res, next) => {
   }
 });
 
-// Root route
+
+
+// Root route (Vercel home endpoint)
+
 app.get('/', (req, res) => {
   res.send('Cartiva Backend Server is Running Perfectly!');
 });
@@ -160,6 +200,67 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+app.post('/api/auth/google', async (req, res) => {
+  try {
+    if (!GOOGLE_CLIENT_ID) {
+      return res.status(500).json({ error: 'Google Sign-In is not configured on the server (missing GOOGLE_CLIENT_ID)' });
+    }
+
+    const { credential } = req.body || {};
+    if (!credential || typeof credential !== 'string') {
+      return res.status(400).json({ error: 'Missing Google credential' });
+    }
+
+    let payload;
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience: GOOGLE_CLIENT_ID,
+      });
+      payload = ticket.getPayload();
+    } catch {
+      return res.status(401).json({ error: 'Invalid Google credential' });
+    }
+
+    if (!payload || !payload.email) {
+      return res.status(401).json({ error: 'Google account has no verified email' });
+    }
+    if (!payload.email_verified) {
+      return res.status(401).json({ error: 'Google email is not verified' });
+    }
+
+    const email = String(payload.email).trim().toLowerCase();
+    const name = String(payload.name || '').trim();
+    const picture = String(payload.picture || '').trim();
+    const googleId = String(payload.sub || '').trim();
+
+    // Find by googleId first, then fall back to matching an existing
+    // password-based account with the same email (so a customer who
+    // registered manually can still sign in with Google afterwards).
+    let user = await User.findOne({ googleId });
+    if (!user) user = await User.findOne({ email });
+
+    if (!user) {
+      user = await User.create({ email, googleId, name, picture, authProvider: 'google' });
+    } else {
+      // Keep the profile fresh and link the Google account if not linked yet.
+      user.googleId = user.googleId || googleId;
+      user.name = name || user.name;
+      user.picture = picture || user.picture;
+      await user.save();
+    }
+
+    const token = signToken({ sub: user._id.toString(), role: 'customer', email: user.email });
+    res.json({
+      ok: true,
+      token,
+      user: { id: user._id.toString(), email: user.email, name: user.name, picture: user.picture },
+    });
+  } catch {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // ===== Auth (Admin) =====
 app.post('/api/admin/login', async (req, res) => {
   try {
@@ -181,7 +282,28 @@ app.post('/api/admin/login', async (req, res) => {
 });
 
 app.get('/api/me/customer', authCustomer, async (req, res) => {
-  res.json({ email: req.user.email });
+  try {
+    const user = await User.findById(req.user.id).lean();
+    res.json({
+      email: req.user.email,
+      name: user?.name || '',
+      picture: user?.picture || '',
+    });
+  } catch {
+    res.json({ email: req.user.email });
+  }
+});
+
+// Order history for the logged-in customer (requires Google/email login).
+app.get('/api/my/orders', authCustomer, async (req, res) => {
+  try {
+    const orders = await Order.find({ customerEmail: req.user.email })
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json({ ok: true, orders });
+  } catch {
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
 // ===== Products + Settings =====
@@ -217,6 +339,7 @@ app.get('/api/store', async (req, res) => {
   }
 });
 
+// Admin-only: must have Bearer admin token
 app.post('/api/products', authAdmin, async (req, res) => {
   try {
     const p = req.body || {};
@@ -285,21 +408,55 @@ app.post('/api/settings', authAdmin, async (req, res) => {
 });
 
 // ===== Orders =====
-app.post('/api/orders', authCustomer, async (req, res) => {
+// NOTE: checkout.html supports guest checkout (no customer login/token is ever
+// sent from the frontend), but this route used to require authCustomer.
+// That made every real checkout request fail with 401, silently falling back
+// to a localStorage-only "success" on the frontend, so the order never
+// reached MongoDB and never appeared in admin.html. Removing the auth
+// requirement here (and validating customerEmail directly) fixes that.
+app.post('/api/orders', async (req, res) => {
   try {
     const b = req.body || {};
     const items = Array.isArray(b.items) ? b.items : [];
     if (!items.length) return res.status(400).json({ error: 'No items' });
 
+    // Optional: if a customer is logged in (Google or email/password), the
+    // frontend sends their JWT. It's never required (guest checkout keeps
+    // working), but if present and valid we trust its email and tag the
+    // order as "loggedIn" for the admin dashboard.
+    let loggedInEmail = '';
+    let authProvider = '';
+    const authHeader = req.headers.authorization || '';
+    const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : null;
+    if (bearerToken) {
+      try {
+        const payload = verifyToken(bearerToken);
+        if (payload && payload.role === 'customer' && payload.email) {
+          const user = await User.findById(payload.sub).lean();
+          if (user) {
+            loggedInEmail = user.email;
+            authProvider = user.authProvider || 'password';
+          }
+        }
+      } catch {
+        // Invalid/expired token: fall back to guest checkout silently.
+      }
+    }
+
+    const customerEmail = String(loggedInEmail || b.customerEmail || b.customer?.email || '').trim();
+    if (!customerEmail) return res.status(400).json({ error: 'Customer email is required' });
+
     const generatedOrderId = `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
 
     const order = await Order.create({
       orderId: String(b.orderId || generatedOrderId),
-      customerEmail: String(b.customerEmail || req.user.email),
+      customerEmail,
+      loggedIn: Boolean(loggedInEmail),
+      authProvider,
       customer: {
         fullName: String(b.customer?.fullName || '').trim(),
         phone: String(b.customer?.phone || '').trim(),
-        email: String(b.customer?.email || b.customerEmail || req.user.email),
+        email: String(b.customer?.email || customerEmail),
         address: String(b.customer?.address || '').trim(),
         city: String(b.customer?.city || '').trim(),
         postal: String(b.customer?.postal || '').trim(),
@@ -336,10 +493,13 @@ app.get('/api/admin/orders', authAdmin, async (req, res) => {
   }
 });
 
+// লোকাল ডেভেলপমেন্ট এবং ক্লাউড ওয়ার্মআপের জন্য
 if (process.env.MONGODB_URI) {
   connectToDatabase().catch(() => {});
 }
 
+
+// Standalone Local development server listener
 if (require.main === module) {
   app.listen(PORT, async () => {
     try {
