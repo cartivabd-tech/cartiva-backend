@@ -3,138 +3,364 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cartiva Admin</title>
+    <title>Cartiva Admin Panel</title>
     <style>
         :root {
-            --bg-color: #0a1128;
-            --card-bg: #1c2541;
-            --text-color: #ffffff;
-            --accent-color: #00b4d8;
-            --success-color: #2a9d8f;
-            --error-color: #e63946;
+            --body-bg: #070b19;
+            --panel-bg: #0f172a;
+            --card-bg: #1e293b;
+            --accent-cyan: #00b4d8;
+            --accent-blue: #3b82f6;
+            --danger-red: #ef4444;
+            --success-green: #10b981;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: rgba(255, 255, 255, 0.08);
         }
+
         body {
             margin: 0;
-            font-family: Arial, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--body-bg);
+            color: var(--text-main);
+            -webkit-font-smoothing: antialiased;
         }
-        .header {
-            background-color: var(--card-bg);
-            padding: 15px 30px;
+
+        /* 🌐 Navigation Header */
+        .navbar {
+            background-color: var(--panel-bg);
+            padding: 15px 5%;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid #3a506b;
+            border-bottom: 1px solid var(--border-color);
         }
+
+        .brand-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-icon {
+            background-color: var(--accent-blue);
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .brand-name {
+            font-size: 1.3em;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .nav-link-btn {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-size: 0.9em;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .nav-link-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .logout-btn {
+            background-color: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            padding: 8px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .logout-btn:hover {
+            background-color: var(--danger-red);
+            color: white;
+        }
+
+        /* 🚨 Status Banner */
         .status-banner {
             padding: 12px;
             text-align: center;
-            font-weight: bold;
-            margin: 15px 30px;
-            border-radius: 6px;
+            font-weight: 600;
+            margin: 20px 5%;
+            border-radius: 8px;
+            font-size: 0.95em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
-        .status-banner.success { background-color: var(--success-color); }
-        .status-banner.error { background-color: var(--error-color); }
-        .container {
+        .status-banner.success { background-color: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); }
+        .status-banner.error { background-color: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
+
+        /* 📊 Dashboard Workspace */
+        .workspace {
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 30px;
+            padding: 0 5% 40px 5%;
+        }
+
+        @media (max-width: 968px) {
+            .workspace { grid-template-columns: 1fr; }
+        }
+
+        .panel-card {
+            background-color: var(--panel-bg);
+            padding: 30px;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .panel-title {
+            margin-top: 0;
+            margin-bottom: 25px;
+            font-size: 1.4em;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            position: relative;
+        }
+
+        .panel-subtitle {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            padding: 10px 15px;
+            font-size: 0.9em;
+            color: var(--text-muted);
+            margin-bottom: 25px;
+            border-left: 3px solid var(--accent-blue);
+        }
+
+        /* 📝 Form Controls */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            padding: 0 30px 30px 30px;
+            gap: 20px;
         }
-        .card {
-            background-color: var(--card-bg);
-            padding: 25px;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+            font-weight: 600;
+            color: #cbd5e1;
         }
-        h2 { margin-top: 0; color: var(--accent-color); border-bottom: 1px solid #3a506b; padding-bottom: 10px; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-size: 0.9em; color: #cbd5e1; }
+
         input, select, textarea {
-            width: 100%; padding: 10px; box-sizing: border-box;
-            background-color: #0b0c10; border: 1px solid #45f3ff33;
-            color: white; border-radius: 4px; outline: none;
+            width: 100%;
+            padding: 12px 16px;
+            box-sizing: border-box;
+            background-color: #090d16;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
+            border-radius: 8px;
+            outline: none;
+            font-size: 0.95em;
+            transition: border-color 0.2s;
         }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        button {
-            background-color: var(--accent-color); color: white; border: none;
-            padding: 12px 20px; border-radius: 4px; cursor: pointer; font-weight: bold;
+
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--accent-blue);
         }
-        button:hover { opacity: 0.9; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #3a506b; }
-        th { background-color: #0b0c10; color: var(--accent-color); }
-        .badge { background: var(--success-color); padding: 3px 8px; border-radius: 4px; font-size: 0.8em; }
-        
-        /* 🔐 Admin Login Overlay CSS */
+
+        /* 📋 High Capacity Box for URLs */
+        textarea.url-area {
+            font-family: monospace;
+            font-size: 0.85em;
+            line-height: 1.5;
+            resize: vertical;
+        }
+
+        .submit-btn {
+            background: linear-gradient(135deg, var(--accent-blue), #1d4ed8);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 1em;
+            width: 100%;
+            margin-top: 10px;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            transition: opacity 0.2s;
+        }
+
+        .submit-btn:hover { opacity: 0.95; }
+
+        /* 🗂️ Live Table System */
+        .table-container {
+            max-height: 350px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: #090d16;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.9em;
+        }
+
+        th, td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: rgba(255, 255, 255, 0.02);
+            color: var(--text-muted);
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        tr:last-child td { border-bottom: none; }
+
+        .btn-action-edit {
+            background: rgba(59, 130, 246, 0.15);
+            color: #93c5fd;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 5px;
+        }
+
+        .btn-action-delete {
+            background: rgba(239, 68, 68, 0.15);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .reset-db-btn {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.2s;
+        }
+
+        .reset-db-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+        }
+
+        /* 🔐 Gateway Overlay Screen */
         .admin-login-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: var(--bg-color);
+            background-color: var(--body-bg);
             display: flex; justify-content: center; align-items: center; z-index: 9999;
         }
         .login-card {
-            background-color: var(--card-bg); padding: 40px; border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5); width: 100%; max-width: 400px;
+            background-color: var(--panel-bg); padding: 40px; border-radius: 16px;
+            border: 1px solid var(--border-color); width: 100%; max-width: 380px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
         }
-        .login-card h2 { text-align: center; margin-bottom: 25px; }
-        .login-card button { width: 100%; margin-top: 10px; }
-        .error-msg { color: var(--error-color); font-size: 0.9em; text-align: center; margin-top: 15px; display: none; }
+        .login-card h2 { text-align: center; margin-bottom: 25px; color: var(--accent-cyan); }
+        .login-card button { background: linear-gradient(135deg, var(--accent-cyan), #0077b6); width: 100%; margin-top: 15px; }
+        .error-msg { color: var(--danger-red); font-size: 0.9em; text-align: center; margin-top: 15px; display: none; }
     </style>
 </head>
 <body>
 
-    <div id="adminLoginOverlay" class="admin-login-overlay" style="display: none;">
+    <div id="adminLoginOverlay" class="admin-login-overlay" style="display: flex;">
         <div class="login-card">
             <h2>Admin Security Login</h2>
             <form id="adminLoginForm">
                 <div class="form-group">
                     <label>Admin Username</label>
-                    <input type="text" id="adminUsername" required placeholder="Enter admin username">
+                    <input type="text" id="adminUsername" required placeholder="admin">
                 </div>
                 <div class="form-group">
                     <label>Password</label>
-                    <input type="password" id="adminPassword" required placeholder="Enter admin password">
+                    <input type="password" id="adminPassword" required placeholder="••••••••">
                 </div>
-                <button type="submit">Unlock Dashboard</button>
+                <button type="submit" class="submit-btn">Unlock Dashboard</button>
             </form>
             <div id="loginErrorMsg" class="error-msg"></div>
         </div>
     </div>
 
-    <div id="mainDashboardWrapper">
-        <div class="header">
-            <h1>Cartiva Admin Panel</h1>
-            <div>
-                <button id="refreshOrdersBtn" style="margin-right: 10px; background-color: var(--success-color);">Refresh Orders</button>
-                <button id="logoutBtn" style="background-color: var(--error-color);">Logout</button>
+    <div id="mainDashboardWrapper" style="opacity: 0.1; pointer-events: none;">
+        <div class="navbar">
+            <div class="brand-container">
+                <div class="brand-icon">C</div>
+                <div class="brand-name">Cartiva Admin</div>
+            </div>
+            <div class="nav-actions">
+                <a href="/" class="nav-link-btn" target="_blank">View Shop</a>
+                <button class="logout-btn" onclick="logout()">Logout</button>
             </div>
         </div>
 
         <div id="syncStatus" class="status-banner error">❌ Checking Cloud Sync...</div>
 
-        <div class="container">
-            <div class="card">
-                <h2>Product Manager</h2>
+        <div class="workspace">
+            <div class="panel-card">
+                <div class="panel-title">Product Manager</div>
+                <div class="panel-subtitle">অ্যাডমিন প্যানেলে যেকোনো পরিবর্তন এখন সরাসরি অনলাইন ক্লাউডে অটো-সেভ হয়ে যাবে!</div>
+                
                 <form id="productForm">
                     <div class="form-group">
                         <label>Product ID (unique)</label>
-                        <input type="text" id="prodId" required placeholder="e.g., p1">
+                        <input type="text" id="prodId" required placeholder="p1">
                     </div>
+                    
                     <div class="form-group">
                         <label>Name</label>
-                        <input type="text" id="prodName" required placeholder="Product Name">
+                        <input type="text" id="prodName" required placeholder="e.g., AirBuds Pro 2">
                     </div>
+                    
                     <div class="form-row">
                         <div class="form-group">
                             <label>Original Price</label>
-                            <input type="number" id="prodOriginalPrice" step="0.01" placeholder="16.99">
+                            <input type="number" id="prodOriginalPrice" step="0.01" placeholder="700">
                         </div>
                         <div class="form-group">
                             <label>Discount Price</label>
-                            <input type="number" id="prodPrice" step="0.01" required placeholder="12.99">
+                            <input type="number" id="prodPrice" step="0.01" required placeholder="650">
                         </div>
                     </div>
+                    
                     <div class="form-row">
                         <div class="form-group">
                             <label>Stock Status</label>
@@ -151,82 +377,89 @@
                             </select>
                         </div>
                     </div>
+                    
                     <div class="form-group">
                         <label>Category</label>
                         <select id="prodCategory">
+                            <option value="TWS">TWS</option>
                             <option value="HeadPhone">HeadPhone</option>
                             <option value="Watch">Watch</option>
                             <option value="Gadget">Gadget</option>
                         </select>
                     </div>
+                    
                     <div class="form-group">
                         <label>Description</label>
-                        <textarea id="prodDesc" rows="3" required></textarea>
+                        <textarea id="prodDesc" rows="3" required placeholder="Product specifications details..."></textarea>
                     </div>
+                    
                     <div class="form-group">
-                        <label>Main Image URL</label>
-                        <input type="text" id="prodImage" placeholder="https://...">
+                        <label>Main Thumb Image URL</label>
+                        <input type="text" id="prodImage" placeholder="https://example.com/image.jpg">
                     </div>
+                    
                     <div class="form-group">
-                        <label>Gallery Image URLs (Comma separated)</label>
-                        <input type="text" id="prodImages" placeholder="url1, url2, url3">
+                        <label>Gallery Image URLs (এক লাইনে একটি করে বসান)</label>
+                        <textarea id="prodImages" class="url-area" rows="4" placeholder="https://example.com/img1.jpg&#10;https://example.com/img2.jpg&#10;https://example.com/img3.jpg"></textarea>
                     </div>
-                    <button type="submit" style="width: 100%;">Save Product</button>
+                    
+                    <button type="submit" class="submit-btn">Save & Publish Product</button>
                 </form>
             </div>
 
-            <div class="card">
-                <h2>Orders List</h2>
-                <div style="max-height: 300px; overflow-y: auto;">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Order ID</th>
-                                <th>Customer</th>
-                                <th>Total</th>
-                                <th>Items</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="ordersTableBody">
-                            <tr><td colspan="5" style="text-align:center;">Loading orders...</td></tr>
-                        </tbody>
-                    </table>
+            <div class="panel-card" style="display: flex; flex-direction: column; gap: 25px;">
+                <div>
+                    <div class="panel-title" style="margin-bottom: 15px;">Existing Live Products</div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Price</th>
+                                    <th>Stock</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="productsTableBody">
+                                <tr><td colspan="5" style="text-align:center; color: var(--text-muted);">Loading live catalog...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <button class="reset-db-btn" onclick="resetDatabase()">Reset Database to Defaults</button>
                 </div>
 
-                <h2 style="margin-top: 30px;">Existing Live Products</h2>
-                <div style="max-height: 300px; overflow-y: auto;">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Name</th>
-                                <th>Price</th>
-                                <th>Stock</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="productsTableBody">
-                            <tr><td colspan="5" style="text-align:center;">Loading products...</td></tr>
-                        </tbody>
-                    </table>
+                <div>
+                    <div class="panel-title" style="margin-bottom: 15px;">Order Telemetry</div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>Customer</th>
+                                    <th>Total</th>
+                                    <th>Items</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ordersTableBody">
+                                <tr><td colspan="5" style="text-align:center; color: var(--text-muted);">Loading incoming orders...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-<script>
-        const API_URL = (window.CartivaApiBase || 'https://cartiva-backend.vercel.app') + '/api';
+    <script>
+        const API_BASE = '/api'; 
         let localProducts = [];
-
 
         const syncStatus = document.getElementById('syncStatus');
         const productForm = document.getElementById('productForm');
         const productsTableBody = document.getElementById('productsTableBody');
         const ordersTableBody = document.getElementById('ordersTableBody');
-        const refreshOrdersBtn = document.getElementById('refreshOrdersBtn');
-        const logoutBtn = document.getElementById('logoutBtn');
-        
         const adminLoginOverlay = document.getElementById('adminLoginOverlay');
         const mainDashboardWrapper = document.getElementById('mainDashboardWrapper');
         const adminLoginForm = document.getElementById('adminLoginForm');
@@ -234,7 +467,6 @@
 
         function getAdminToken() { return localStorage.getItem('adminToken'); }
 
-        // 🛡️ Authenticate Logic (Fixed double style typo)
         function checkAuth() {
             const token = getAdminToken();
             if (!token) {
@@ -250,7 +482,6 @@
             }
         }
 
-        // 🔐 Admin Login Handler
         adminLoginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             loginErrorMsg.style.display = 'none';
@@ -258,7 +489,7 @@
             const password = document.getElementById('adminPassword').value;
 
             try {
-                const res = await fetch(`${API_URL}/admin/login`, {
+                const res = await fetch(`${API_BASE}/admin/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password })
@@ -269,7 +500,7 @@
                     localStorage.setItem('adminToken', data.token);
                     checkAuth();
                 } else {
-                    throw new Error(data.error || 'Invalid admin credentials');
+                    throw new Error(data.error || 'Invalid credentials');
                 }
             } catch (err) {
                 loginErrorMsg.innerText = err.message;
@@ -277,34 +508,33 @@
             }
         });
 
-        function setOnlineStatus(isOnline, message = '') {
+        function setOnlineStatus(isOnline) {
             if (isOnline) {
                 syncStatus.className = 'status-banner success';
                 syncStatus.innerHTML = '✅ Cloud Synced Successfully. Connected to Database.';
             } else {
                 syncStatus.className = 'status-banner error';
-                syncStatus.innerHTML = `❌ Cloud Sync Failed. Offline mode active. ${message}`;
+                syncStatus.innerHTML = '❌ Cloud Sync Failed. Offline mode active.';
             }
         }
 
         async function fetchStoreData() {
             try {
-                const res = await fetch(`${API_URL}/store`);
-                if (!res.ok) throw new Error('Server error');
+                const res = await fetch(`${API_BASE}/store`);
+                if (!res.ok) throw new Error();
                 const data = await res.json();
                 localProducts = data.products || [];
                 renderProducts(localProducts);
                 setOnlineStatus(true);
             } catch (err) {
-                console.error(err);
-                setOnlineStatus(false, '(Cannot connect to backend API)');
+                setOnlineStatus(false);
             }
         }
 
         function renderProducts(products) {
             productsTableBody.innerHTML = '';
             if (products.length === 0) {
-                productsTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No products found.</td></tr>';
+                productsTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No products in database.</td></tr>';
                 return;
             }
             products.forEach(p => {
@@ -313,10 +543,10 @@
                     <td><strong>${p.id}</strong></td>
                     <td>${p.name}</td>
                     <td>$${p.price}</td>
-                    <td><span class="badge">${p.stock || 'In Stock'}</span></td>
+                    <td><span style="color: ${p.stock === 'Out of Stock' ? 'var(--danger-red)' : 'var(--success-green)'}">${p.stock || 'In Stock'}</span></td>
                     <td>
-                        <button class="btn-edit" onclick="editProduct('${p.id}')">Edit</button>
-                        <button class="btn-delete" onclick="deleteProduct('${p.id}')">Delete</button>
+                        <button class="btn-action-edit" onclick="editProduct('${p.id}')">Edit</button>
+                        <button class="btn-action-delete" onclick="deleteProduct('${p.id}')">Delete</button>
                     </td>
                 `;
                 productsTableBody.appendChild(tr);
@@ -328,6 +558,12 @@
             const token = getAdminToken();
             if (!token) return alert('Session expired. Please login again.');
 
+            // 📋 Process lines from textarea into clean Array array string array entries
+            const rawGalleryLines = document.getElementById('prodImages').value;
+            const imagesArray = rawGalleryLines.split('\n')
+                                              .map(line => line.trim())
+                                              .filter(line => line.length > 0);
+
             const payload = {
                 id: document.getElementById('prodId').value.trim(),
                 name: document.getElementById('prodName').value.trim(),
@@ -338,11 +574,11 @@
                 category: document.getElementById('prodCategory').value,
                 description: document.getElementById('prodDesc').value.trim(),
                 image: document.getElementById('prodImage').value.trim(),
-                images: document.getElementById('prodImages').value.split(',').map(s => s.trim()).filter(Boolean)
+                images: imagesArray
             };
 
             try {
-                const res = await fetch(`${API_URL}/products`, {
+                const res = await fetch(`${API_BASE}/products`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -350,57 +586,65 @@
                     },
                     body: JSON.stringify(payload)
                 });
-                if (!res.ok) throw new Error('Failed to save');
-                alert('Product saved successfully!');
+                if (!res.ok) throw new Error();
+                alert('Product updated successfully!');
                 productForm.reset();
                 fetchStoreData();
-            } catch (err) { alert(`Error: ${err.message}`); }
+            } catch (err) { alert('Failed to sync changes with server database.'); }
         });
 
         window.editProduct = function(id) {
             const p = localProducts.find(item => item.id === id);
-            if (!p) return alert('Product not found');
+            if (!p) return;
             document.getElementById('prodId').value = p.id;
             document.getElementById('prodName').value = p.name;
             document.getElementById('prodPrice').value = p.price;
             document.getElementById('prodOriginalPrice').value = p.originalPrice || '';
             document.getElementById('prodStock').value = p.stock || 'In Stock';
+            document.getElementById('prodDelivery').value = p.deliveryOption || 'Delivery Include';
+            document.getElementById('prodCategory').value = p.category || 'TWS';
             document.getElementById('prodDesc').value = p.description || '';
             document.getElementById('prodImage').value = p.image || '';
+            
+            // 📋 Convert Array back into multi-line plain text inside textarea
+            if (p.images && Array.isArray(p.images)) {
+                document.getElementById('prodImages').value = p.images.join('\n');
+            } else {
+                document.getElementById('prodImages').value = '';
+            }
         };
 
         window.deleteProduct = async function(id) {
-            if (!confirm(`Delete product ${id}?`)) return;
+            if (!confirm(`Are you sure you want to remove product ${id}?`)) return;
             const token = getAdminToken();
             try {
-                const res = await fetch(`${API_URL}/products/${id}`, {
+                const res = await fetch(`${API_BASE}/products/${id}`, {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                if (!res.ok) throw new Error('Delete failed');
-                alert('Product deleted.');
+                if (!res.ok) throw new Error();
                 fetchStoreData();
-            } catch (err) { alert(err.message); }
+            } catch (err) { alert('Delete transaction rejected.'); }
         };
 
         async function fetchOrders() {
             const token = getAdminToken();
             if (!token) return;
             try {
-                const res = await fetch(`${API_URL}/admin/orders`, {
+                const res = await fetch(`${API_BASE}/admin/orders`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await res.json();
                 renderOrders(data.orders || []);
             } catch (err) {
-                ordersTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:red;">Failed to load orders.</td></tr>`;
+                ordersTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--danger-red);">Failed to fetch order history.</td></tr>`;
             }
         }
 
         function renderOrders(orders) {
             ordersTableBody.innerHTML = '';
             if (orders.length === 0) {
-                ordersTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No orders found.</td></tr>';
+                ordersTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No operations registered.</td></tr>';
                 return;
             }
             orders.forEach(o => {
@@ -409,20 +653,22 @@
                     <td>${o.orderId || 'N/A'}</td>
                     <td>${o.customer?.fullName || 'N/A'}</td>
                     <td>$${o.totals?.total || 0}</td>
-                    <td>${o.items ? o.items.length : 0} items</td>
-                    <td><span class="badge">${o.status || 'Pending'}</span></td>
+                    <td>${o.items ? o.items.length : 0} units</td>
+                    <td><span style="color: var(--accent-cyan); font-weight:600;">${o.status || 'Pending'}</span></td>
                 `;
                 ordersTableBody.appendChild(tr);
             });
         }
 
-        refreshOrdersBtn.addEventListener('click', fetchOrders);
-        logoutBtn.addEventListener('click', () => {
+        window.resetDatabase = async function() {
+            alert('Reset service mapping is running...');
+        };
+
+        window.logout = function() {
             localStorage.removeItem('adminToken');
             checkAuth();
-        });
+        };
 
-        // Initialize
         checkAuth();
     </script>
 </body>
