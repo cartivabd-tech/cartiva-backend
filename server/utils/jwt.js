@@ -8,5 +8,9 @@ function signToken(payload) {
   return jwt.sign(payload, getSecret(), { expiresIn: '7d' });
 }
 
-module.exports = { signToken };
+function verifyToken(token) {
+  return jwt.verify(token, getSecret());
+}
+
+module.exports = { signToken, verifyToken };
 

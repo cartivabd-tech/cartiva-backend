@@ -1,13 +1,21 @@
 # TODO
 
-- [ ] Review server MongoDB connection code in `server/index.js` and identify connection-blocking / retry issues
-- [x] Refactor `connectToDatabase()` to be retry-safe (clear cached promise on failure)
+## Step 1
+Review server code for readability/quality issues and identify safe refactors.
+- [x] Read: server/index.js, auth middleware, jwt util, and models.
+- [x] Read: js/app.js for client readability concerns.
 
-- [x] Add Mongoose connection timeouts/options for clearer failure modes
+## Step 2
+Implement code-only refactor/safety improvements (no endpoint/UI behavior changes).
+- [ ] server/index.js: extract helpers; make JWT verification consistent; improve orderId collision handling.
+- [ ] server/utils/jwt.js: (if needed) add verify helper to avoid duplicated secret logic.
 
-- [x] Avoid blocking *every* request with DB connection (limit middleware to API routes / health)
+## Step 3
+Run a quick sanity check.
+- [ ] Start backend locally (if env vars available) or run node syntax check.
 
-- [ ] Ensure `/api/health` returns meaningful status
-- [ ] Run local tests: `cd server && npm install && npm start`
-- [ ] Validate endpoints: `GET /api/health`, auth routes, product/admin routes
+## Step 4
+Git commit + push.
+- [ ] Commit changes with a clear message.
+- [ ] Push to current branch.
 

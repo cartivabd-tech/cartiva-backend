@@ -13,8 +13,13 @@ const Order = require('./models/Order');
 const User = require('./models/User');
 const Admin = require('./models/Admin');
 
-const { signToken } = require('./utils/jwt');
+const { signToken, verifyToken } = require('./utils/jwt');
 const bcrypt = require('bcryptjs');
+const { OAuth2Client } = require('google-auth-library');
+
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+const jwt = require('jsonwebtoken');
 
 const app = express();
 app.use(express.json({ limit: '2mb' }));
@@ -195,6 +200,67 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+app.post('/api/auth/google', async (req, res) => {
+  try {
+    if (!GOOGLE_CLIENT_ID) {
+      return res.status(500).json({ error: 'Google Sign-In is not configured on the server (missing GOOGLE_CLIENT_ID)' });
+    }
+
+    const { credential } = req.body || {};
+    if (!credential || typeof credential !== 'string') {
+      return res.status(400).json({ error: 'Missing Google credential' });
+    }
+
+    let payload;
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience: GOOGLE_CLIENT_ID,
+      });
+      payload = ticket.getPayload();
+    } catch {
+      return res.status(401).json({ error: 'Invalid Google credential' });
+    }
+
+    if (!payload || !payload.email) {
+      return res.status(401).json({ error: 'Google account has no verified email' });
+    }
+    if (!payload.email_verified) {
+      return res.status(401).json({ error: 'Google email is not verified' });
+    }
+
+    const email = String(payload.email).trim().toLowerCase();
+    const name = String(payload.name || '').trim();
+    const picture = String(payload.picture || '').trim();
+    const googleId = String(payload.sub || '').trim();
+
+    // Find by googleId first, then fall back to matching an existing
+    // password-based account with the same email (so a customer who
+    // registered manually can still sign in with Google afterwards).
+    let user = await User.findOne({ googleId });
+    if (!user) user = await User.findOne({ email });
+
+    if (!user) {
+      user = await User.create({ email, googleId, name, picture, authProvider: 'google' });
+    } else {
+      // Keep the profile fresh and link the Google account if not linked yet.
+      user.googleId = user.googleId || googleId;
+      user.name = name || user.name;
+      user.picture = picture || user.picture;
+      await user.save();
+    }
+
+    const token = signToken({ sub: user._id.toString(), role: 'customer', email: user.email });
+    res.json({
+      ok: true,
+      token,
+      user: { id: user._id.toString(), email: user.email, name: user.name, picture: user.picture },
+    });
+  } catch {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // ===== Auth (Admin) =====
 app.post('/api/admin/login', async (req, res) => {
   try {
@@ -216,7 +282,28 @@ app.post('/api/admin/login', async (req, res) => {
 });
 
 app.get('/api/me/customer', authCustomer, async (req, res) => {
-  res.json({ email: req.user.email });
+  try {
+    const user = await User.findById(req.user.id).lean();
+    res.json({
+      email: req.user.email,
+      name: user?.name || '',
+      picture: user?.picture || '',
+    });
+  } catch {
+    res.json({ email: req.user.email });
+  }
+});
+
+// Order history for the logged-in customer (requires Google/email login).
+app.get('/api/my/orders', authCustomer, async (req, res) => {
+  try {
+    const orders = await Order.find({ customerEmail: req.user.email })
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json({ ok: true, orders });
+  } catch {
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
 // ===== Products + Settings =====
@@ -321,21 +408,55 @@ app.post('/api/settings', authAdmin, async (req, res) => {
 });
 
 // ===== Orders =====
-app.post('/api/orders', authCustomer, async (req, res) => {
+// NOTE: checkout.html supports guest checkout (no customer login/token is ever
+// sent from the frontend), but this route used to require authCustomer.
+// That made every real checkout request fail with 401, silently falling back
+// to a localStorage-only "success" on the frontend, so the order never
+// reached MongoDB and never appeared in admin.html. Removing the auth
+// requirement here (and validating customerEmail directly) fixes that.
+app.post('/api/orders', async (req, res) => {
   try {
     const b = req.body || {};
     const items = Array.isArray(b.items) ? b.items : [];
     if (!items.length) return res.status(400).json({ error: 'No items' });
 
+    // Optional: if a customer is logged in (Google or email/password), the
+    // frontend sends their JWT. It's never required (guest checkout keeps
+    // working), but if present and valid we trust its email and tag the
+    // order as "loggedIn" for the admin dashboard.
+    let loggedInEmail = '';
+    let authProvider = '';
+    const authHeader = req.headers.authorization || '';
+    const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : null;
+    if (bearerToken) {
+      try {
+        const payload = verifyToken(bearerToken);
+        if (payload && payload.role === 'customer' && payload.email) {
+          const user = await User.findById(payload.sub).lean();
+          if (user) {
+            loggedInEmail = user.email;
+            authProvider = user.authProvider || 'password';
+          }
+        }
+      } catch {
+        // Invalid/expired token: fall back to guest checkout silently.
+      }
+    }
+
+    const customerEmail = String(loggedInEmail || b.customerEmail || b.customer?.email || '').trim();
+    if (!customerEmail) return res.status(400).json({ error: 'Customer email is required' });
+
     const generatedOrderId = `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
 
     const order = await Order.create({
       orderId: String(b.orderId || generatedOrderId),
-      customerEmail: String(b.customerEmail || req.user.email),
+      customerEmail,
+      loggedIn: Boolean(loggedInEmail),
+      authProvider,
       customer: {
         fullName: String(b.customer?.fullName || '').trim(),
         phone: String(b.customer?.phone || '').trim(),
-        email: String(b.customer?.email || b.customerEmail || req.user.email),
+        email: String(b.customer?.email || customerEmail),
         address: String(b.customer?.address || '').trim(),
         city: String(b.customer?.city || '').trim(),
         postal: String(b.customer?.postal || '').trim(),
