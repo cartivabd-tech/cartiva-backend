@@ -161,11 +161,21 @@
   }
 
   function getApiBase() {
-    // Render API base URL should be set globally like:
-    //   window.CartivaApiBase = 'https://your-backend.onrender.com'
-    // You can also override by setting window.CartivaApiBase in each HTML.
-    return window.CartivaApiBase || 'https://cartiva-backend.vercel.app';
+    // Priority:
+    // 1) Explicit override (recommended)
+    //    window.CartivaApiBase = 'https://your-backend-domain'
+    // 2) Same-origin fallback (helps local dev / same-host deployments)
+    // 3) Last resort: the original Vercel backend URL
+    const override = window.CartivaApiBase;
+    if (typeof override === 'string' && override.trim()) return override.trim();
+
+    // If the frontend is hosted on the same origin as the API, this fixes connection issues.
+    const sameOrigin = (window.location && window.location.origin) ? window.location.origin : '';
+    if (sameOrigin) return sameOrigin;
+
+    return 'https://cartiva-backend.vercel.app';
   }
+
 
   async function register(email, password) {
     const res = await fetch(getApiBase() + '/api/auth/register', {
