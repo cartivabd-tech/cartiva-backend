@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cartiva - My Orders</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="js/google-config.js"></script>
+</head>
+<body>
+  <div class="toast" id="toast"></div>
+
+  <div class="topbar">
+    <div class="container topbar-inner">
+      <div class="store"><div class="store-name" id="liveStoreName">Cartiva</div></div>
+      <div class="topbar-links">
+        <a id="linkWhatsApp" class="topbar-link" href="#" target="_blank" rel="noreferrer">WhatsApp</a>
+        <span class="dot">•</span>
+        <a id="linkFacebook" class="topbar-link" href="#" target="_blank" rel="noreferrer">Facebook Page</a>
+        <span class="dot">•</span>
+        <a id="linkInstagram" class="topbar-link" href="#" target="_blank" rel="noreferrer">Instagram</a>
+      </div>
+    </div>
+  </div>
+
+  <header class="header">
+    <div class="container header-inner">
+      <a class="logo" href="index.html">
+        <div class="logo-badge">C</div>
+        <div class="logo-title">Cartiva</div>
+      </a>
+      <nav class="nav">
+        <a class="pill" href="index.html">Shop</a>
+        <a class="pill" href="cart.html">Cart <span class="badge" id="cartCount">0</span></a>
+        <a class="pill" href="checkout.html">Checkout</a>
+        <a class="pill active" id="myOrdersPill" href="my-orders.html">My Orders</a>
+        <a class="pill" id="authPill" href="login.html">Login</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container" style="padding:24px 0 40px">
+    <h2 style="margin:0 0 6px 0">My Orders</h2>
+    <p style="color:var(--muted); margin:0 0 20px 0" id="subheading">Loading...</p>
+
+    <div id="notLoggedInBox" style="display:none; background:#1a202c; border:1px solid #2d3748; border-radius:10px; padding:30px; text-align:center;">
+      <p style="margin:0 0 16px 0; color:var(--muted)">Please sign in to see your order history.</p>
+      <a class="btn" href="login.html">Go to Login</a>
+    </div>
+
+    <div id="ordersList"></div>
+  </main>
+
+  <script src="js/app.js"></script>
+  <script>
+    const API_BASE = window.CartivaApiBase || (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? 'http://localhost:5000'
+      : window.location.origin);
+    window.CartivaApiBase = API_BASE;
+
+    const toast = document.getElementById('toast');
+    function showToast(msg) {
+      toast.textContent = msg; toast.classList.add('show');
+      clearTimeout(showToast._t); showToast._t = setTimeout(() => toast.classList.remove('show'), 1500);
+    }
+
+    function syncAuthPill() {
+      const pill = document.getElementById('authPill');
+      if (!pill || !window.UserAuth) return;
+      const u = window.UserAuth.getCurrentUser();
+      if (u) {
+        const label = u.name || u.email;
+        pill.innerHTML = (u.picture ? `<img src="${u.picture}" alt="" style="width:20px;height:20px;border-radius:50%;vertical-align:middle;margin-right:6px" />` : '') + 'Logout (' + label + ')';
+        pill.href = '#';
+        pill.onclick = (e) => { e.preventDefault(); window.UserAuth.logout(); window.location.href = 'login.html'; };
+      } else {
+        pill.textContent = 'Login';
+        pill.href = 'login.html';
+        pill.onclick = null;
+      }
+    }
+
+    function statusColor(status) {
+      const s = (status || 'pending').toLowerCase();
+      if (s === 'delivered' || s === 'completed') return { bg: 'rgba(34,197,94,0.15)', fg: '#22c55e' };
+      if (s === 'cancelled' || s === 'canceled') return { bg: 'rgba(239,68,68,0.15)', fg: '#ef4444' };
+      if (s === 'shipped' || s === 'processing') return { bg: 'rgba(59,130,246,0.15)', fg: '#3b82f6' };
+      return { bg: 'rgba(245,158,11,0.15)', fg: '#f59e0b' }; // pending / default
+    }
+
+    function renderOrders(orders) {
+      const listEl = document.getElementById('ordersList');
+      const subheading = document.getElementById('subheading');
+
+      if (!orders.length) {
+        subheading.textContent = "You haven't placed any orders yet.";
+        listEl.innerHTML = `
+          <div style="background:#1a202c; border:1px solid #2d3748; border-radius:10px; padding:30px; text-align:center;">
+            <p style="color:var(--muted); margin:0 0 16px 0">No orders found for your account.</p>
+            <a class="btn" href="index.html">Start shopping</a>
+          </div>`;
+        return;
+      }
+
+      subheading.textContent = `${orders.length} order${orders.length > 1 ? 's' : ''} found`;
+
+      listEl.innerHTML = orders.map(o => {
+        const sc = statusColor(o.status);
+        const date = o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+        const itemsHtml = (o.items || []).map(it => `
+          <div style="display:flex; justify-content:space-between; padding:6px 0; font-size:13px; border-bottom:1px solid #2d3748;">
+            <span>${escapeHtml(it.name || 'Item')} × ${it.qty || 1}</span>
+            <span style="color:var(--muted)">৳${Number(it.price || 0) * Number(it.qty || 1)}</span>
+          </div>
+        `).join('');
+
+        return `
+          <div style="background:#1a202c; border:1px solid #2d3748; border-radius:10px; padding:18px; margin-bottom:14px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+              <div>
+                <div style="font-weight:800; font-size:15px;">Order ${escapeHtml(o.orderId || '')}</div>
+                <div style="color:var(--muted); font-size:12px; margin-top:2px;">${date}</div>
+              </div>
+              <span style="padding:5px 12px; border-radius:8px; font-size:12px; font-weight:700; background:${sc.bg}; color:${sc.fg}">
+                ${escapeHtml((o.status || 'pending'))}
+              </span>
+            </div>
+            <div style="margin-bottom:10px;">${itemsHtml}</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:14px;">
+              <span style="color:var(--muted)">Delivery: ${escapeHtml(o.deliveryLocation || '-')}</span>
+              <strong style="color:var(--accent); font-size:16px;">৳${o.totals?.total || 0}</strong>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function escapeHtml(s) {
+      return String(s == null ? '' : s)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;');
+    }
+
+    async function loadMyOrders() {
+      const token = window.UserAuth ? window.UserAuth.getToken() : null;
+      if (!token) {
+        document.getElementById('subheading').textContent = '';
+        document.getElementById('notLoggedInBox').style.display = 'block';
+        return;
+      }
+
+      try {
+        const res = await fetch(API_BASE + '/api/my/orders', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to load orders');
+        renderOrders(data.orders || []);
+      } catch (err) {
+        document.getElementById('subheading').textContent = '';
+        document.getElementById('ordersList').innerHTML = `
+          <div style="background:#1a202c; border:1px solid #ef444455; border-radius:10px; padding:20px; text-align:center; color:#ef4444;">
+            Couldn't load your orders. Please try again later.
+          </div>`;
+      }
+    }
+
+    function syncCartBadge() {
+      try {
+        if (window.CartivaCart) {
+          document.getElementById('cartCount').textContent = String(window.CartivaCart.getCartCount());
+        }
+      } catch {}
+    }
+
+    syncAuthPill();
+    syncCartBadge();
+    loadMyOrders();
+  </script>
+</body>
+</html>
