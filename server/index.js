@@ -24,9 +24,24 @@ const jwt = require('jsonwebtoken');
 const app = express();
 app.use(express.json({ limit: '2mb' }));
 
-// ফ্রন্টএন্ড বা অ্যাডমিন প্যানেলের স্ট্যাটিক ফাইলগুলো (HTML, CSS, JS) সার্ভ করার জন্য
-// আপনার admin.html বা index.html যদি রুট ফোল্ডারেই থাকে, তবে এটি কাজ করবে
+// Serve frontend static files.
+// Backend is located in /server, while site html lives in the repo root.
+const path = require('path');
+app.use(express.static(path.join(__dirname, '..')));
+// Also serve any static assets shipped with the backend (optional)
 app.use(express.static(__dirname));
+
+// Serve repo-root HTML pages for common routes (so /index.html, /admin.html etc work)
+// This avoids relying on the bundler/static host configuration.
+app.get('/index.html', (req, res) => res.sendFile(require('path').join(__dirname, '..', 'index.html')));
+app.get('/login.html', (req, res) => res.sendFile(require('path').join(__dirname, '..', 'login.html')));
+app.get('/checkout.html', (req, res) => res.sendFile(require('path').join(__dirname, '..', 'checkout.html')));
+app.get('/cart.html', (req, res) => res.sendFile(require('path').join(__dirname, '..', 'cart.html')));
+app.get('/product.html', (req, res) => res.sendFile(require('path').join(__dirname, '..', 'product.html')));
+app.get('/admin.html', (req, res) => res.sendFile(require('path').join(__dirname, '..', 'admin.html')));
+app.get('/my-orders.html', (req, res) => res.sendFile(require('path').join(__dirname, '..', 'my-orders.html')));
+// Keep /api/* routes only.
+// (No catch-all /api handler here to avoid breaking legitimate subpaths.)
 
 function buildCorsOptions(req, callback) {
   // Allow multiple origins: ORIGIN="https://a.com,https://b.com"
@@ -330,6 +345,22 @@ app.get('/api/my/orders', authCustomer, async (req, res) => {
 });
 
 // ===== Products + Settings =====
+function normalizeStock(stock) {
+  const s = String(stock || '').trim().toLowerCase();
+  if (s === 'in-stock' || s === 'in stock' || s === 'in') return 'in-stock';
+  if (s === 'out-of-stock' || s === 'out of stock' || s === 'out') return 'out-of-stock';
+  // fallback: keep unknown as-is
+  return stock;
+}
+
+function normalizeDeliveryOption(opt) {
+  const o = String(opt || '').trim().toLowerCase();
+  // Admin UI sends: "Delivery Include" / "Delivery Charge Extra"
+  if (o === 'delivery included' || o === 'delivery include' || o === 'delivery-included' || o === 'delivery include') return 'delivery-included';
+  if (o === 'free-delivery' || o === 'free delivery' || o === 'delivery charge extra' || o === 'delivery charge extra') return 'free-delivery';
+  return opt;
+}
+
 app.get('/api/store', async (req, res) => {
   try {
     const products = await Product.find({}).lean();
@@ -374,8 +405,8 @@ app.post('/api/products', authAdmin, async (req, res) => {
       name: String(p.name || '').trim(),
       price: Number(p.price),
       originalPrice: p.originalPrice === null || p.originalPrice === undefined || p.originalPrice === '' ? null : Number(p.originalPrice),
-      stock: p.stock,
-      deliveryOption: p.deliveryOption,
+      stock: normalizeStock(p.stock),
+      deliveryOption: normalizeDeliveryOption(p.deliveryOption),
       category: String(p.category || '').trim(),
       description: String(p.description || '').trim(),
       image: String(p.image || ''),
@@ -397,7 +428,33 @@ app.post('/api/products', authAdmin, async (req, res) => {
     return res.json({ ok: true });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Server error saving product' });
+  res.status(500).json({ error: 'Server error saving product' });
+  }
+});
+
+// Admin UI button referenced by admin.html.
+// Resets Products and Settings to defaults shipped in /data/products.js.
+app.post('/api/admin/reset', authAdmin, async (req, res) => {
+  try {
+    const defaults = require('../data/products.js');
+    await Product.deleteMany({});
+    if (Array.isArray(defaults) && defaults.length) {
+      await Product.insertMany(defaults.map(p => ({
+        ...p,
+        stock: normalizeStock(p.stock),
+        deliveryOption: normalizeDeliveryOption(p.deliveryOption),
+        originalPrice: p.originalPrice === undefined ? null : p.originalPrice,
+        images: Array.isArray(p.images) ? p.images : (p.images ? [String(p.images)] : []),
+      })));
+    }
+
+    await Settings.deleteMany({});
+    await Settings.create({});
+
+    res.json({ ok: true, reset: true, inserted: Array.isArray(defaults) ? defaults.length : 0 });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Server error resetting database' });
   }
 });
 
