@@ -3,8 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
-// const path = require('path'); // unused (removed)
-
+const path = require('path');
 
 const { authAdmin, authCustomer } = require('./middleware/auth');
 const Settings = require('./models/Settings');
@@ -25,36 +24,26 @@ const app = express();
 app.use(express.json({ limit: '2mb' }));
 
 // Serve frontend static files.
-// Backend is located in /server, while site html lives in the repo root.
-const path = require('path');
 app.use(express.static(path.join(__dirname, '..')));
-// Also serve any static assets shipped with the backend (optional)
 app.use(express.static(__dirname));
 
-// Serve repo-root HTML pages for common routes (so /index.html, /admin.html etc work)
-// This avoids relying on the bundler/static host configuration.
-app.get('/index.html', (req, res) => res.sendFile(require('path').join(__dirname, '..', 'index.html')));
-app.get('/login.html', (req, res) => res.sendFile(require('path').join(__dirname, '..', 'login.html')));
-app.get('/checkout.html', (req, res) => res.sendFile(require('path').join(__dirname, '..', 'checkout.html')));
-app.get('/cart.html', (req, res) => res.sendFile(require('path').join(__dirname, '..', 'cart.html')));
-app.get('/product.html', (req, res) => res.sendFile(require('path').join(__dirname, '..', 'product.html')));
-app.get('/admin.html', (req, res) => res.sendFile(require('path').join(__dirname, '..', 'admin.html')));
-app.get('/my-orders.html', (req, res) => res.sendFile(require('path').join(__dirname, '..', 'my-orders.html')));
-// Keep /api/* routes only.
-// (No catch-all /api handler here to avoid breaking legitimate subpaths.)
+// Serve repo-root HTML pages for common routes
+app.get('/index.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'index.html')));
+app.get('/login.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'login.html')));
+app.get('/checkout.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'checkout.html')));
+app.get('/cart.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'cart.html')));
+app.get('/product.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'product.html')));
+app.get('/admin.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'admin.html')));
+app.get('/my-orders.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'my-orders.html')));
 
 function buildCorsOptions(req, callback) {
-  // Allow multiple origins: ORIGIN="https://a.com,https://b.com"
   const raw = process.env.ORIGIN || '';
   const allowedOrigins = raw
     .split(',')
     .map(s => s.trim())
     .filter(Boolean);
 
-  // If ORIGIN is not set, fall back to permissive mode
-  // (useful for local dev; replace with explicit ORIGIN in production).
   const isPermissive = allowedOrigins.length === 0;
-
   const reqOrigin = req.header('Origin');
 
   if (isPermissive) return callback(null, { origin: true });
@@ -75,7 +64,6 @@ app.use(
   })
 );
 
-// Ensure CORS preflight works reliably on mobile browsers
 app.options('*', cors({
   origin: buildCorsOptions,
   credentials: true,
@@ -106,20 +94,6 @@ async function connectToDatabase() {
     throw new Error('MONGODB_URI missing in environment variables');
   }
 
-  // Helpful logging (mask credentials in case URI includes them)
-  try {
-    const masked = mongoUri.replace(/(mongodb\+srv:\/\/)(.*?:.*?@)/, '$1****@');
-    const host = (() => {
-      const m = masked.match(/@([^/?]+)/);
-      return m?.[1] || 'unknown-host';
-    })();
-    console.log('[DB] Connecting to', host);
-  } catch {
-    // ignore masking/logging failures
-  }
-
-
-  // If connection is already established, don't reconnect.
   if (mongoose.connection.readyState === 1) return;
 
   if (cached.connPromise) return cached.connPromise;
@@ -128,22 +102,20 @@ async function connectToDatabase() {
     try {
       console.log('Connecting to MongoDB...');
 
-      // Options tuned to prevent long hangs and improve failure clarity
       await mongoose.connect(mongoUri, {
         serverSelectionTimeoutMS: Number(process.env.MONGODB_SERVER_SELECTION_TIMEOUT_MS || 10000),
         socketTimeoutMS: Number(process.env.MONGODB_SOCKET_TIMEOUT_MS || 20000),
       });
 
-      console.log('MongoDB connected');
+      console.log('MongoDB connected successfully');
 
       await ensureAdmin();
 
       const settings = await Settings.findOne({});
       if (!settings) await Settings.create({});
     } catch (err) {
-      // Important: allow future retries (do not keep a rejected promise forever)
       cached.connPromise = null;
-      console.error('MongoDB connection failed:', err);
+      console.error('MongoDB connection failed:', err.message);
       throw err;
     }
   })();
@@ -151,21 +123,21 @@ async function connectToDatabase() {
   return cached.connPromise;
 }
 
-// Connect to DB only for API routes (avoid blocking static file requests)
+// Connect to DB only for API routes with detailed error reporting
 app.use('/api', async (req, res, next) => {
   try {
     await connectToDatabase();
     next();
   } catch (err) {
     console.error('Database Connection Error:', err);
-    res.status(500).json({ error: 'Database connection failed' });
+    res.status(500).json({ 
+      error: 'Database connection failed', 
+      details: err.message 
+    });
   }
 });
 
-
-
 // Root route (Vercel home endpoint)
-
 app.get('/', (req, res) => {
   res.send('Cartiva Backend Server is Running Perfectly!');
 });
@@ -176,16 +148,17 @@ app.get('/api/health', async (req, res) => {
     res.json({
       ok: true,
       mongooseReadyState: mongoose.connection.readyState,
+      message: 'Database is connected and healthy!',
     });
   } catch (e) {
     res.status(500).json({
       ok: false,
       mongooseReadyState: mongoose.connection?.readyState ?? 0,
       error: 'Database connection failed',
+      details: e.message,
     });
   }
 });
-
 
 // ===== Auth (Customer) =====
 app.post('/api/auth/register', async (req, res) => {
@@ -237,7 +210,6 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-
 app.post('/api/auth/google', async (req, res) => {
   try {
     if (!GOOGLE_CLIENT_ID) {
@@ -272,16 +244,12 @@ app.post('/api/auth/google', async (req, res) => {
     const picture = String(payload.picture || '').trim();
     const googleId = String(payload.sub || '').trim();
 
-    // Find by googleId first, then fall back to matching an existing
-    // password-based account with the same email (so a customer who
-    // registered manually can still sign in with Google afterwards).
     let user = await User.findOne({ googleId });
     if (!user) user = await User.findOne({ email });
 
     if (!user) {
       user = await User.create({ email, googleId, name, picture, authProvider: 'google' });
     } else {
-      // Keep the profile fresh and link the Google account if not linked yet.
       user.googleId = user.googleId || googleId;
       user.name = name || user.name;
       user.picture = picture || user.picture;
@@ -332,7 +300,6 @@ app.get('/api/me/customer', authCustomer, async (req, res) => {
   }
 });
 
-// Order history for the logged-in customer (requires Google/email login).
 app.get('/api/my/orders', authCustomer, async (req, res) => {
   try {
     const orders = await Order.find({ customerEmail: req.user.email })
@@ -349,15 +316,13 @@ function normalizeStock(stock) {
   const s = String(stock || '').trim().toLowerCase();
   if (s === 'in-stock' || s === 'in stock' || s === 'in') return 'in-stock';
   if (s === 'out-of-stock' || s === 'out of stock' || s === 'out') return 'out-of-stock';
-  // fallback: keep unknown as-is
   return stock;
 }
 
 function normalizeDeliveryOption(opt) {
   const o = String(opt || '').trim().toLowerCase();
-  // Admin UI sends: "Delivery Include" / "Delivery Charge Extra"
-  if (o === 'delivery included' || o === 'delivery include' || o === 'delivery-included' || o === 'delivery include') return 'delivery-included';
-  if (o === 'free-delivery' || o === 'free delivery' || o === 'delivery charge extra' || o === 'delivery charge extra') return 'free-delivery';
+  if (o === 'delivery included' || o === 'delivery include' || o === 'delivery-included') return 'delivery-included';
+  if (o === 'free-delivery' || o === 'free delivery' || o === 'delivery charge extra') return 'free-delivery';
   return opt;
 }
 
@@ -393,7 +358,6 @@ app.get('/api/store', async (req, res) => {
   }
 });
 
-// Admin-only: must have Bearer admin token
 app.post('/api/products', authAdmin, async (req, res) => {
   try {
     const p = req.body || {};
@@ -428,12 +392,10 @@ app.post('/api/products', authAdmin, async (req, res) => {
     return res.json({ ok: true });
   } catch (err) {
     console.error(err);
-  res.status(500).json({ error: 'Server error saving product' });
+    res.status(500).json({ error: 'Server error saving product' });
   }
 });
 
-// Admin UI button referenced by admin.html.
-// Resets Products and Settings to defaults shipped in /data/products.js.
 app.post('/api/admin/reset', authAdmin, async (req, res) => {
   try {
     const defaults = require('../data/products.js');
@@ -488,22 +450,12 @@ app.post('/api/settings', authAdmin, async (req, res) => {
 });
 
 // ===== Orders =====
-// NOTE: checkout.html supports guest checkout (no customer login/token is ever
-// sent from the frontend), but this route used to require authCustomer.
-// That made every real checkout request fail with 401, silently falling back
-// to a localStorage-only "success" on the frontend, so the order never
-// reached MongoDB and never appeared in admin.html. Removing the auth
-// requirement here (and validating customerEmail directly) fixes that.
 app.post('/api/orders', async (req, res) => {
   try {
     const b = req.body || {};
     const items = Array.isArray(b.items) ? b.items : [];
     if (!items.length) return res.status(400).json({ error: 'No items' });
 
-    // Optional: if a customer is logged in (Google or email/password), the
-    // frontend sends their JWT. It's never required (guest checkout keeps
-    // working), but if present and valid we trust its email and tag the
-    // order as "loggedIn" for the admin dashboard.
     let loggedInEmail = '';
     let authProvider = '';
     const authHeader = req.headers.authorization || '';
@@ -519,7 +471,7 @@ app.post('/api/orders', async (req, res) => {
           }
         }
       } catch {
-        // Invalid/expired token: fall back to guest checkout silently.
+        // Fall back to guest checkout
       }
     }
 
@@ -573,34 +525,32 @@ app.get('/api/admin/orders', authAdmin, async (req, res) => {
   }
 });
 
-// Update order status (Admin only)
 app.patch('/api/admin/orders/:id', authAdmin, async (req, res) => {
   try {
     const orderId = String(req.params.id || '').trim();
     const { status } = req.body || {};
-    
+
     if (!orderId) return res.status(400).json({ error: 'Order ID is required' });
-    
+
     const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
     const newStatus = String(status || '').trim().toLowerCase();
-    
+
     if (!validStatuses.includes(newStatus)) {
       return res.status(400).json({ error: 'Invalid status. Must be one of: ' + validStatuses.join(', ') });
     }
-    
+
     const order = await Order.findOne({ orderId });
     if (!order) return res.status(404).json({ error: 'Order not found' });
-    
+
     order.status = newStatus;
     await order.save();
-    
+
     res.json({ ok: true, orderId: order.orderId, status: order.status });
   } catch {
     res.status(500).json({ error: 'Server error updating order status' });
   }
 });
 
-// Get overall store stats (Admin only)
 app.get('/api/admin/stats', authAdmin, async (req, res) => {
   try {
     const totalProducts = await Product.countDocuments({});
@@ -612,10 +562,10 @@ app.get('/api/admin/stats', authAdmin, async (req, res) => {
     const orderStatusCounts = await Order.aggregate([
       { $group: { _id: '$status', count: { $sum: 1 } } }
     ]);
-    
+
     const statusCounts = {};
     orderStatusCounts.forEach(s => { statusCounts[s._id] = s.count; });
-    
+
     res.json({
       totalProducts,
       totalOrders,
@@ -627,13 +577,10 @@ app.get('/api/admin/stats', authAdmin, async (req, res) => {
   }
 });
 
-// লোকাল ডেভেলপমেন্ট এবং ক্লাউড ওয়ার্মআপের জন্য
 if (process.env.MONGODB_URI) {
   connectToDatabase().catch(() => {});
 }
 
-
-// Standalone Local development server listener
 if (require.main === module) {
   app.listen(PORT, async () => {
     try {
