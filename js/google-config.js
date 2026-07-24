@@ -14,4 +14,4 @@
 // GOOGLE_CLIENT_ID environment variable.
 // ============================================================
 
-window.CartivaGoogleClientId = "PASTE_YOUR_GOOGLE_CLIENT_ID_HERE.apps.googleusercontent.com";
+window.CartivaGoogleClientId = "29786920881-eek1m6qr22fscqnvm646pv3idvfcth9t.apps.googleusercontent.com";

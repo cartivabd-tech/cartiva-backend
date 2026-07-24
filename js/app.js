@@ -121,10 +121,15 @@
     window.dispatchEvent(new CustomEvent("cartiva:cartChanged"));
   }
 
+  function getCartItems() {
+    return loadCart();
+  }
+
   // Expose globally
   window.CartivaCart = {
     STORAGE_KEY,
     getCartCount,
+    getCartItems,
     addToCart,
     setQty,
     removeFromCart,
@@ -216,13 +221,16 @@
   }
 
   window.UserAuth = {
-    register,
-    login,
-    logout,
-    getCurrentUser,
-    getToken() {
+        register,
+        login,
+        logout,
+        getCurrentUser,
+        getToken() {
       return getSession()?.token || null;
     },
   };
 })();
+
+
+
 
