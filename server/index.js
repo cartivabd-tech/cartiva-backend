@@ -18,16 +18,15 @@ const { OAuth2Client } = require('google-auth-library');
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
-const jwt = require('jsonwebtoken');
 
 const app = express();
 app.use(express.json({ limit: '2mb' }));
 
-// Serve frontend static files.
+// Static file serving
 app.use(express.static(path.join(__dirname, '..')));
 app.use(express.static(__dirname));
 
-// Serve repo-root HTML pages for common routes
+// HTML Routes
 app.get('/index.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'index.html')));
 app.get('/login.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'login.html')));
 app.get('/checkout.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'checkout.html')));
@@ -36,6 +35,7 @@ app.get('/product.html', (req, res) => res.sendFile(path.join(__dirname, '..', '
 app.get('/admin.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'admin.html')));
 app.get('/my-orders.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'my-orders.html')));
 
+// CORS Setup
 function buildCorsOptions(req, callback) {
   const raw = process.env.ORIGIN || '';
   const allowedOrigins = raw
@@ -44,25 +44,21 @@ function buildCorsOptions(req, callback) {
     .filter(Boolean);
 
   const isPermissive = allowedOrigins.length === 0;
-  const reqOrigin = req.header('Origin');
+  const reqOrigin = req ? req.header('Origin') : null;
 
-  if (isPermissive) return callback(null, { origin: true });
-  if (!reqOrigin) return callback(null, { origin: false });
-  if (allowedOrigins.includes(reqOrigin)) {
+  if (isPermissive || !reqOrigin || allowedOrigins.includes(reqOrigin)) {
     return callback(null, { origin: true });
   }
 
   return callback(null, { origin: false });
 }
 
-app.use(
-  cors({
-    origin: buildCorsOptions,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  })
-);
+app.use(cors({
+  origin: buildCorsOptions,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 
 app.options('*', cors({
   origin: buildCorsOptions,
@@ -73,49 +69,52 @@ app.options('*', cors({
 
 const PORT = process.env.PORT || 3000;
 
-// Serverless-safe cached connection
+// Database Connection Caching
 let cached = { connPromise: null };
 
 async function ensureAdmin() {
-  const adminUsername = process.env.ADMIN_USERNAME || 'admin';
-  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+  try {
+    const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
 
-  let admin = await Admin.findOne({ username: adminUsername });
-  if (!admin) {
-    const passwordHash = await bcrypt.hash(adminPassword, 10);
-    admin = await Admin.create({ username: adminUsername, passwordHash });
+    let admin = await Admin.findOne({ username: adminUsername });
+    if (!admin) {
+      const passwordHash = await bcrypt.hash(adminPassword, 10);
+      await Admin.create({ username: adminUsername, passwordHash });
+    }
+  } catch (err) {
+    console.error('ensureAdmin Error:', err.message);
   }
 }
 
 async function connectToDatabase() {
   const mongoUri = process.env.MONGODB_URI;
   if (!mongoUri) {
-    console.error('[DB] MONGODB_URI missing');
     throw new Error('MONGODB_URI missing in environment variables');
   }
 
-  if (mongoose.connection.readyState === 1) return;
+  if (mongoose.connection && mongoose.connection.readyState === 1) {
+    return;
+  }
 
   if (cached.connPromise) return cached.connPromise;
 
   cached.connPromise = (async () => {
     try {
       console.log('Connecting to MongoDB...');
-
       await mongoose.connect(mongoUri, {
         serverSelectionTimeoutMS: Number(process.env.MONGODB_SERVER_SELECTION_TIMEOUT_MS || 10000),
         socketTimeoutMS: Number(process.env.MONGODB_SOCKET_TIMEOUT_MS || 20000),
       });
 
-      console.log('MongoDB connected successfully');
-
+      console.log('MongoDB Connected!');
       await ensureAdmin();
 
       const settings = await Settings.findOne({});
       if (!settings) await Settings.create({});
     } catch (err) {
       cached.connPromise = null;
-      console.error('MongoDB connection failed:', err.message);
+      console.error('MongoDB Connection Failure:', err.message);
       throw err;
     }
   })();
@@ -123,41 +122,41 @@ async function connectToDatabase() {
   return cached.connPromise;
 }
 
-// Connect to DB only for API routes with detailed error reporting
+// Database Connection Middleware
 app.use('/api', async (req, res, next) => {
   try {
     await connectToDatabase();
     next();
   } catch (err) {
-    console.error('Database Connection Error:', err);
+    console.error('Database Connection Middleware Error:', err ? err.message : err);
     res.status(500).json({ 
       error: 'Database connection failed', 
-      details: err.message 
+      details: err ? err.message : 'Unknown DB Error' 
     });
   }
 });
 
-// Root route (Vercel home endpoint)
-app.get('/', (req, res) => {
-  res.send('Cartiva Backend Server is Running Perfectly!');
-});
-
+// Health Endpoint
 app.get('/api/health', async (req, res) => {
   try {
     await connectToDatabase();
     res.json({
       ok: true,
-      mongooseReadyState: mongoose.connection.readyState,
-      message: 'Database is connected and healthy!',
+      mongooseReadyState: mongoose.connection ? mongoose.connection.readyState : 0,
+      message: 'Backend & DB running smoothly!'
     });
   } catch (e) {
     res.status(500).json({
       ok: false,
-      mongooseReadyState: mongoose.connection?.readyState ?? 0,
+      mongooseReadyState: mongoose.connection ? mongoose.connection.readyState : 0,
       error: 'Database connection failed',
-      details: e.message,
+      details: e ? e.message : 'Unknown error'
     });
   }
+});
+
+app.get('/', (req, res) => {
+  res.send('Cartiva Backend Server is Running Perfectly!');
 });
 
 // ===== Auth (Customer) =====
@@ -213,7 +212,7 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/auth/google', async (req, res) => {
   try {
     if (!GOOGLE_CLIENT_ID) {
-      return res.status(500).json({ error: 'Google Sign-In is not configured on the server (missing GOOGLE_CLIENT_ID)' });
+      return res.status(500).json({ error: 'Google Sign-In missing GOOGLE_CLIENT_ID' });
     }
 
     const { credential } = req.body || {};
@@ -232,10 +231,7 @@ app.post('/api/auth/google', async (req, res) => {
       return res.status(401).json({ error: 'Invalid Google credential' });
     }
 
-    if (!payload || !payload.email) {
-      return res.status(401).json({ error: 'Google account has no verified email' });
-    }
-    if (!payload.email_verified) {
+    if (!payload || !payload.email || !payload.email_verified) {
       return res.status(401).json({ error: 'Google email is not verified' });
     }
 
@@ -289,20 +285,22 @@ app.post('/api/admin/login', async (req, res) => {
 
 app.get('/api/me/customer', authCustomer, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).lean();
+    const userId = req.user?.id || req.user?.sub;
+    const user = userId ? await User.findById(userId).lean() : null;
     res.json({
-      email: req.user.email,
+      email: req.user?.email || '',
       name: user?.name || '',
       picture: user?.picture || '',
     });
   } catch {
-    res.json({ email: req.user.email });
+    res.json({ email: req.user?.email || '' });
   }
 });
 
 app.get('/api/my/orders', authCustomer, async (req, res) => {
   try {
-    const orders = await Order.find({ customerEmail: req.user.email })
+    const email = req.user?.email || '';
+    const orders = await Order.find({ customerEmail: email })
       .sort({ createdAt: -1 })
       .lean();
     res.json({ ok: true, orders });
@@ -311,7 +309,7 @@ app.get('/api/my/orders', authCustomer, async (req, res) => {
   }
 });
 
-// ===== Products + Settings =====
+// Store & Products
 function normalizeStock(stock) {
   const s = String(stock || '').trim().toLowerCase();
   if (s === 'in-stock' || s === 'in stock' || s === 'in') return 'in-stock';
@@ -330,14 +328,14 @@ app.get('/api/store', async (req, res) => {
   try {
     const products = await Product.find({}).lean();
     const settingsDoc = await Settings.findOne({});
-    const settings = settingsDoc ? settingsDoc.toObject() : { logoUrl: '', waUrl: '', fbUrl: '', igUrl: '', tikTokUrl: '' };
+    const settings = settingsDoc ? settingsDoc.toObject() : {};
 
     res.json({
-      products: products.map(p => ({
+      products: (products || []).map(p => ({
         id: p.id,
         name: p.name,
         price: p.price,
-        originalPrice: p.originalPrice === null || p.originalPrice === undefined || p.originalPrice === '' ? null : p.originalPrice,
+        originalPrice: p.originalPrice ?? null,
         stock: p.stock,
         deliveryOption: p.deliveryOption,
         category: p.category,
@@ -353,7 +351,7 @@ app.get('/api/store', async (req, res) => {
         tikTokUrl: settings.tikTokUrl || '',
       },
     });
-  } catch {
+  } catch (err) {
     res.status(500).json({ error: 'Server error fetching store data' });
   }
 });
@@ -391,7 +389,6 @@ app.post('/api/products', authAdmin, async (req, res) => {
     await Product.create(payload);
     return res.json({ ok: true });
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: 'Server error saving product' });
   }
 });
@@ -415,7 +412,6 @@ app.post('/api/admin/reset', authAdmin, async (req, res) => {
 
     res.json({ ok: true, reset: true, inserted: Array.isArray(defaults) ? defaults.length : 0 });
   } catch (e) {
-    console.error(e);
     res.status(500).json({ error: 'Server error resetting database' });
   }
 });
@@ -460,6 +456,7 @@ app.post('/api/orders', async (req, res) => {
     let authProvider = '';
     const authHeader = req.headers.authorization || '';
     const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : null;
+
     if (bearerToken) {
       try {
         const payload = verifyToken(bearerToken);
@@ -471,7 +468,7 @@ app.post('/api/orders', async (req, res) => {
           }
         }
       } catch {
-        // Fall back to guest checkout
+        // guest checkout fallback
       }
     }
 
@@ -564,7 +561,7 @@ app.get('/api/admin/stats', authAdmin, async (req, res) => {
     ]);
 
     const statusCounts = {};
-    orderStatusCounts.forEach(s => { statusCounts[s._id] = s.count; });
+    (orderStatusCounts || []).forEach(s => { statusCounts[s._id] = s.count; });
 
     res.json({
       totalProducts,
@@ -577,6 +574,15 @@ app.get('/api/admin/stats', authAdmin, async (req, res) => {
   }
 });
 
+// Global Error Catch Middleware (To stop crash)
+app.use((err, req, res, next) => {
+  console.error('Global Error Handler:', err ? err.stack || err.message : err);
+  res.status(500).json({
+    error: 'Internal Server Error',
+    details: err ? err.message : 'Unknown Server Error'
+  });
+});
+
 if (process.env.MONGODB_URI) {
   connectToDatabase().catch(() => {});
 }
@@ -585,7 +591,7 @@ if (require.main === module) {
   app.listen(PORT, async () => {
     try {
       await connectToDatabase();
-      console.log(`Cartiva backend listening on port ${PORT}`);
+      console.log(`Server listening on port ${PORT}`);
     } catch (err) {
       console.error('Failed to start standalone server', err);
       process.exitCode = 1;
