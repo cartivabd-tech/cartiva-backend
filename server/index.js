@@ -573,6 +573,60 @@ app.get('/api/admin/orders', authAdmin, async (req, res) => {
   }
 });
 
+// Update order status (Admin only)
+app.patch('/api/admin/orders/:id', authAdmin, async (req, res) => {
+  try {
+    const orderId = String(req.params.id || '').trim();
+    const { status } = req.body || {};
+    
+    if (!orderId) return res.status(400).json({ error: 'Order ID is required' });
+    
+    const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+    const newStatus = String(status || '').trim().toLowerCase();
+    
+    if (!validStatuses.includes(newStatus)) {
+      return res.status(400).json({ error: 'Invalid status. Must be one of: ' + validStatuses.join(', ') });
+    }
+    
+    const order = await Order.findOne({ orderId });
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    
+    order.status = newStatus;
+    await order.save();
+    
+    res.json({ ok: true, orderId: order.orderId, status: order.status });
+  } catch {
+    res.status(500).json({ error: 'Server error updating order status' });
+  }
+});
+
+// Get overall store stats (Admin only)
+app.get('/api/admin/stats', authAdmin, async (req, res) => {
+  try {
+    const totalProducts = await Product.countDocuments({});
+    const totalOrders = await Order.countDocuments({});
+    const totalRevenue = await Order.aggregate([
+      { $match: { status: { $nin: ['cancelled'] } } },
+      { $group: { _id: null, total: { $sum: '$totals.total' } } }
+    ]);
+    const orderStatusCounts = await Order.aggregate([
+      { $group: { _id: '$status', count: { $sum: 1 } } }
+    ]);
+    
+    const statusCounts = {};
+    orderStatusCounts.forEach(s => { statusCounts[s._id] = s.count; });
+    
+    res.json({
+      totalProducts,
+      totalOrders,
+      totalRevenue: totalRevenue.length > 0 ? totalRevenue[0].total : 0,
+      orderStatusCounts: statusCounts
+    });
+  } catch {
+    res.status(500).json({ error: 'Server error fetching stats' });
+  }
+});
+
 // লোকাল ডেভেলপমেন্ট এবং ক্লাউড ওয়ার্মআপের জন্য
 if (process.env.MONGODB_URI) {
   connectToDatabase().catch(() => {});

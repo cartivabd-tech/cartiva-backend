@@ -109,6 +109,24 @@
                 }
 
                 const data = await res.json();
+
+                if (mode === 'signup' && data.ok) {
+                    // Auto-login after successful signup
+                    const loginRes = await fetch(`${API_URL}/auth/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, password })
+                    });
+                    const loginData = await loginRes.json();
+                    if (loginRes.ok && loginData.token) {
+                        localStorage.setItem('cartiva_customer_session_v2', JSON.stringify({ token: loginData.token, email: loginData.user?.email || email }));
+                        window.location.href = '/index.html';
+                    } else {
+                        window.location.href = '/login.html';
+                    }
+                    return;
+                }
+
                 if (!res.ok || !data.ok) throw new Error(data.error || 'Request failed');
 
                 localStorage.setItem('cartiva_customer_session_v2', JSON.stringify({ token: data.token, email: data.user?.email || email }));
@@ -120,7 +138,7 @@
             }
         });
 
-        // Google Sign-In: exchange credential for our backend JWT.
+        // Google Sign-In
         let googleInitialized = false;
         function initGoogle() {
             if (googleInitialized) return;

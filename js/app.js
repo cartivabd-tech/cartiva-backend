@@ -121,10 +121,15 @@
     window.dispatchEvent(new CustomEvent("cartiva:cartChanged"));
   }
 
+  function getCartItems() {
+    return loadCart();
+  }
+
   // Expose globally
   window.CartivaCart = {
     STORAGE_KEY,
     getCartCount,
+    getCartItems,
     addToCart,
     setQty,
     removeFromCart,
