@@ -80,6 +80,7 @@
         <a class="pill" href="index.html">Shop</a>
         <a class="pill" href="cart.html">Cart <span class="badge" id="cartCount">0</span></a>
         <a class="pill" href="checkout.html">Checkout</a>
+        <a class="pill" href="my-orders.html">My Orders</a>
         <a class="pill" id="authPill" href="login.html" style="display:none">Login</a>
       </nav>
     </div>
@@ -167,7 +168,7 @@ window.CartivaApiBase = window.CartivaApiBase || 'https://cartiva-backend.vercel
     }
 
     function escapeHtml(s) {
-      return String(s)
+      return String(s || '')
         .replaceAll('&', '&amp;')
         .replaceAll('<', '<')
         .replaceAll('>', '>')
