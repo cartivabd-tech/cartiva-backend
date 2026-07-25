@@ -44,7 +44,7 @@
         <a class="pill" href="index.html">Shop</a>
         <a class="pill" href="cart.html">Cart <span class="badge" id="cartCount">0</span></a>
         <a class="pill" href="checkout.html">Checkout</a>
-        <a class="pill" id="authPill" href="login.html" style="display:none">Login</a>
+        <a class="pill" id="authPill" href="login.html">Login</a>
       </nav>
     </div>
   </header>
@@ -403,7 +403,7 @@
         } else {
           pill.textContent = 'Login';
           pill.href = 'login.html';
-          pill.style.display = 'none';
+          pill.style.display = 'inline-flex';
         }
       } catch {}
     }
