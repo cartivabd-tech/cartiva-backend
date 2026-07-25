@@ -29,6 +29,20 @@ app.use(express.json({ limit: '2mb' }));
 app.use(express.static(__dirname));
 
 function buildCorsOptions(req, callback) {
+  // Handle edge case where req is undefined (can happen in serverless
+  // environments like Vercel when the preflight/OPTIONS request is
+  // intercepted before reaching the Express app). In that case we
+  // fall back to permissive CORS to avoid a hard 500 crash.
+  if (!req || typeof req.header !== 'function') {
+    const raw = process.env.ORIGIN || '';
+    const allowedOrigins = raw
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+    const isPermissive = allowedOrigins.length === 0;
+    return callback(null, { origin: isPermissive ? true : false });
+  }
+
   // Allow multiple origins: ORIGIN="https://a.com,https://b.com"
   const raw = process.env.ORIGIN || '';
   const allowedOrigins = raw
@@ -161,6 +175,7 @@ app.get('/api/health', async (req, res) => {
     res.json({
       ok: true,
       mongooseReadyState: mongoose.connection.readyState,
+      message: 'Cartiva Backend Server is Running Perfectly!',
     });
   } catch (e) {
     res.status(500).json({
@@ -502,6 +517,55 @@ app.get('/api/admin/orders', authAdmin, async (req, res) => {
   try {
     const orders = await Order.find({}).sort({ createdAt: -1 }).limit(100).lean();
     res.json({ orders });
+  } catch {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.patch('/api/admin/orders/:id', authAdmin, async (req, res) => {
+  try {
+    const orderId = String(req.params.id || '').trim();
+    const { status } = req.body || {};
+    const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+    if (!status || !validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status. Valid statuses: ' + validStatuses.join(', ') });
+    }
+    const order = await Order.findOne({ orderId });
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    order.status = status;
+    await order.save();
+    res.json({ ok: true, status: order.status });
+  } catch {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.get('/api/admin/stats', authAdmin, async (req, res) => {
+  try {
+    const totalProducts = await Product.countDocuments({});
+    const totalOrders = await Order.countDocuments({});
+    const orderAgg = await Order.aggregate([
+      { $group: { _id: null, totalRevenue: { $sum: '$totals.total' } } },
+    ]);
+    const totalRevenue = orderAgg.length > 0 ? orderAgg[0].totalRevenue : 0;
+    const statusCounts = await Order.aggregate([
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+    ]);
+    const orderStatusCounts = {};
+    statusCounts.forEach(s => { orderStatusCounts[s._id] = s.count; });
+    res.json({ totalProducts, totalOrders, totalRevenue, orderStatusCounts });
+  } catch {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.post('/api/admin/reset', authAdmin, async (req, res) => {
+  try {
+    await Product.deleteMany({});
+    await Order.deleteMany({});
+    res.json({ ok: true, reset: true });
   } catch {
     res.status(500).json({ error: 'Server error' });
   }
