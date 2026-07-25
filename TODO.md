@@ -1,21 +1,22 @@
-# TODO
+# CORS Fix + Missing Routes - Task Progress
 
-## Step 1
-Review server code for readability/quality issues and identify safe refactors.
-- [x] Read: server/index.js, auth middleware, jwt util, and models.
-- [x] Read: js/app.js for client readability concerns.
+## Results
+**Test Suites: 6 passed, 6 total**  
+**Tests: 52 passed, 52 total**
 
-## Step 2
-Implement code-only refactor/safety improvements (no endpoint/UI behavior changes).
-- [ ] server/index.js: extract helpers; make JWT verification consistent; improve orderId collision handling.
-- [ ] server/utils/jwt.js: (if needed) add verify helper to avoid duplicated secret logic.
+## Changes Made
 
-## Step 3
-Run a quick sanity check.
-- [ ] Start backend locally (if env vars available) or run node syntax check.
+1. **CORS Fix** - Added null-guard in `buildCorsOptions` for Vercel serverless (req undefined)
+2. **Fixed health test** - Added `message` field to `/api/health` response
+3. **Added `PATCH /api/admin/orders/:id`** - Order status update with validation
+4. **Added `GET /api/admin/stats`** - Admin dashboard stats (products, orders, revenue)
+5. **Added `POST /api/admin/reset`** - Reset products and orders
 
-## Step 4
-Git commit + push.
-- [ ] Commit changes with a clear message.
-- [ ] Push to current branch.
+## Steps
+- [x] Step 1: Analyze the error and code
+- [x] Step 2: Present plan to user (approved)
+- [x] Step 3: Fix `buildCorsOptions` - add null check for `req`
+- [x] Step 4: Fix health endpoint - add `message` field for test
+- [x] Step 5: Add missing routes (`PATCH`, `GET /api/admin/stats`, `POST /api/admin/reset`)
+- [x] Step 6: **All 52 tests pass!**
 
