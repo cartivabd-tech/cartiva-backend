@@ -9,3 +9,5 @@ const AdminSchema = new mongoose.Schema(
 );
 
 module.exports = mongoose.model('Admin', AdminSchema);
+
+const BASE_URL = 'https://cartiva-backend.vercel.app';

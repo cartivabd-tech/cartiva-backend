@@ -15,9 +15,9 @@
    - `JWT_SECRET` (any strong secret)
    - optional `ORIGIN`
 
-Default admin credentials (from `.env.example`, override with `ADMIN_USERNAME`/`ADMIN_PASSWORD`):
-- username: `admin`
-- password: `admin123`
+Default admin credentials (from `.env.example`):
+- username: `abid`
+- password: `cartivabd`
 
 ## API
 - `GET /api/health`
