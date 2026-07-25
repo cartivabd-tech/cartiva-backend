@@ -5,7 +5,21 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "jest --forceExit --detectOpenHandles",
+    "test:watch": "jest --watch --forceExit --detectOpenHandles",
+    "test:coverage": "jest --coverage --forceExit --detectOpenHandles"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testTimeout": 60000,
+    "verbose": true,
+    "collectCoverageFrom": [
+      "index.js",
+      "middleware/*.js",
+      "models/*.js",
+      "utils/*.js"
+    ]
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -15,5 +29,10 @@
     "google-auth-library": "^10.9.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.5.2"
+  },
+  "devDependencies": {
+    "jest": "^30.4.2",
+    "mongodb-memory-server": "^11.2.0",
+    "supertest": "^7.2.2"
   }
 }

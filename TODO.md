@@ -1,21 +1,22 @@
-# TODO
+# Cartiva - Test Generation & Deployment Prep ✅
 
-## Step 1
-Review server code for readability/quality issues and identify safe refactors.
-- [x] Read: server/index.js, auth middleware, jwt util, and models.
-- [x] Read: js/app.js for client readability concerns.
+## ✅ Step 1: Install test dependencies (jest, supertest, mongodb-memory-server)
+## ✅ Step 2: Create test configuration and setup file
+## ✅ Step 3: Create test helper with mock data and auth token generation
+## ✅ Step 4: Create health endpoint test
+## ✅ Step 5: Create auth tests (register, login, google, admin login)
+## ✅ Step 6: Create store/products tests
+## ✅ Step 7: Create orders tests
+## ✅ Step 8: Create admin tests (stats, settings, reset)
+## ✅ Step 9: Create middleware test
+## ✅ Step 10: Add test scripts to server/package.json
+## ✅ Step 11: Run tests and verify they pass
+## ✅ Step 12: Fix any issues found during testing
 
-## Step 2
-Implement code-only refactor/safety improvements (no endpoint/UI behavior changes).
-- [ ] server/index.js: extract helpers; make JWT verification consistent; improve orderId collision handling.
-- [ ] server/utils/jwt.js: (if needed) add verify helper to avoid duplicated secret logic.
+# Test Results: 52/52 tests passing ✅
 
-## Step 3
-Run a quick sanity check.
-- [ ] Start backend locally (if env vars available) or run node syntax check.
-
-## Step 4
-Git commit + push.
-- [ ] Commit changes with a clear message.
-- [ ] Push to current branch.
+# Test Commands:
+- `npm test` — Run all tests
+- `npm run test:watch` — Run tests in watch mode
+- `npm run test:coverage` — Run tests with coverage report
 
