@@ -22,7 +22,6 @@
         <a id="linkTikTok" class="topbar-link" href="#" target="_blank" rel="noreferrer"><span class="social-icon">🎵</span>TikTok</a>
       </div>
     </div>
-  </div>
 
   <header class="header">
     <div class="container header-inner">
@@ -126,9 +125,11 @@
   <script src="js/app.js"></script>
   <script>
     // Dynamic API base (local dev vs deployed)
+    // On Vercel, frontend and backend are at different domains.
+    // Use explicit backend URL in production, or window.CartivaApiBase override.
     const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
       ? 'http://localhost:5000'
-      : window.location.origin;
+      : (window.CartivaApiBase || 'https://cartiva-backend.vercel.app');
 
     window.CartivaApiBase = API_BASE;
     const API_URL = API_BASE + '/api/store';
