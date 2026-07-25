@@ -87,10 +87,40 @@ async function ensureAdmin() {
   }
 }
 
+// Surface low-level connection events instead of failing silently.
+mongoose.connection.on('error', (err) => {
+  console.error('Mongoose connection error:', err.message);
+});
+mongoose.connection.on('disconnected', () => {
+  console.warn('Mongoose disconnected from MongoDB');
+});
+
+function explainMongoError(err) {
+  const msg = String(err && err.message || err || '');
+  if (/bad auth|authentication failed/i.test(msg)) {
+    return 'Authentication failed — check MONGODB_URI username/password. If your password has special characters (@ # % : / ? etc.), they must be URL-encoded.';
+  }
+  if (/ENOTFOUND|querySrv|ECONNREFUSED/i.test(msg)) {
+    return 'Could not resolve/reach the cluster host — double check the cluster address in MONGODB_URI for typos.';
+  }
+  if (/whitelist|IP address is not|not authorized/i.test(msg)) {
+    return 'Your IP is likely not whitelisted — in MongoDB Atlas, go to Network Access and allow your current IP (or 0.0.0.0/0 for serverless hosts like Vercel).';
+  }
+  if (/timed out|timeout/i.test(msg)) {
+    return 'Connection timed out — this is usually an Atlas IP whitelist issue, or a firewall blocking outbound MongoDB traffic.';
+  }
+  return null;
+}
+
 async function connectToDatabase() {
-  const mongoUri = process.env.MONGODB_URI;
+  // .trim() guards against a trailing space/newline/quote sneaking into .env,
+  // which produces a URI that "looks right" but fails to parse or connect.
+  const mongoUri = String(process.env.MONGODB_URI || '').trim();
   if (!mongoUri) {
     throw new Error('MONGODB_URI missing in environment variables');
+  }
+  if (!/^mongodb(\+srv)?:\/\//.test(mongoUri)) {
+    throw new Error('MONGODB_URI is set but malformed — it must start with "mongodb://" or "mongodb+srv://"');
   }
 
   if (mongoose.connection && mongoose.connection.readyState === 1) {
@@ -105,6 +135,7 @@ async function connectToDatabase() {
       await mongoose.connect(mongoUri, {
         serverSelectionTimeoutMS: Number(process.env.MONGODB_SERVER_SELECTION_TIMEOUT_MS || 10000),
         socketTimeoutMS: Number(process.env.MONGODB_SOCKET_TIMEOUT_MS || 20000),
+        family: 4, // avoid IPv6 resolution issues seen on some hosts (Vercel, some ISPs)
       });
 
       console.log('MongoDB Connected!');
@@ -114,7 +145,8 @@ async function connectToDatabase() {
       if (!settings) await Settings.create({});
     } catch (err) {
       cached.connPromise = null;
-      console.error('MongoDB Connection Failure:', err.message);
+      const hint = explainMongoError(err);
+      console.error('MongoDB Connection Failure:', err.message + (hint ? ` — Hint: ${hint}` : ''));
       throw err;
     }
   })();
@@ -584,7 +616,11 @@ app.use((err, req, res, next) => {
 });
 
 if (process.env.MONGODB_URI) {
-  connectToDatabase().catch(() => {});
+  connectToDatabase().catch((err) => {
+    // Don't crash on cold start — the /api middleware will retry per-request
+    // and report the error — but do log it instead of swallowing it silently.
+    console.error('Initial MongoDB connection attempt failed:', err.message);
+  });
 }
 
 if (require.main === module) {
