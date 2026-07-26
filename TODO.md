@@ -1,18 +1,19 @@
-# Code Review Fix Implementation - All Done ✅
+# Vercel Google Auth Fix - Completed ✅
 
-## Critical Fixes
-- [x] 1. Add `loggedIn` and `authProvider` fields to Order schema (previously sent but silently dropped by Mongoose)
-- [x] 2. Fix static file serving path (`express.static(__dirname)` → `path.join(__dirname, '..')`)
-- [x] 3. Fix port mismatch (changed default from 3000 to 5000 to match frontend local dev config)
-- [x] 4. Eliminate hardcoded JWT secret duplication (auth middleware now imports from jwt.js)
-- [x] 5. Exported `getJwtSecret` from jwt.js so middleware has a single source of truth
+## Issue
+Vercel was deploying from `main` branch which had outdated code without Google auth fixes.
 
-## Medium Fixes
-- [x] 6. Fix admin price display (`$` → `৳`) in both products and orders tables
-- [x] 7. Remove orphan `BASE_URL` constant from Admin model
-- [x] 8. Fix root package.json entry point (`server.js` → `server/index.js`)
-- [x] 9. Updated `path` import from commented-out to active
+## Steps Completed
+- [x] Analyze the code and identify root cause
+- [x] Checkout `main` branch
+- [x] Merge `blackboxai/fix-google-auth-and-orders` into `main`
+- [x] Push `main` to GitHub (triggers Vercel auto-deploy)
 
-## Final Steps
-- [x] 10. All fixes committed and pushed to git remote
+## Fixes Applied to `main` Branch
+| File | Before (outdated) | After (fixed) |
+|------|-------------------|---------------|
+| `js/google-config.js` | `PASTE_YOUR_GOOGLE_CLIENT_ID_HERE` (placeholder) | `29786920881-eek1m6qr22fscqnvm646pv3idvfcth9t` (real Client ID) |
+| `server/index.js` | `express.static(__dirname)` + port 3000 | `express.static(path.join(__dirname, '..'))` + port 5000 |
+| `package.json` | `"main": "server.js"` (doesn't exist) | `"main": "server/index.js"` (correct) |
+| `server/index.js` | `// const path = require('path')` (commented) | `const path = require('path')` (active) |
 
