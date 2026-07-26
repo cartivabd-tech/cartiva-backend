@@ -3,7 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
-// const path = require('path'); // unused (removed)
+const path = require('path');
 
 
 const { authAdmin, authCustomer } = require('./middleware/auth');
@@ -24,9 +24,9 @@ const jwt = require('jsonwebtoken');
 const app = express();
 app.use(express.json({ limit: '2mb' }));
 
-// ফ্রন্টএন্ড বা অ্যাডমিন প্যানেলের স্ট্যাটিক ফাইলগুলো (HTML, CSS, JS) সার্ভ করার জন্য
-// আপনার admin.html বা index.html যদি রুট ফোল্ডারেই থাকে, তবে এটি কাজ করবে
-app.use(express.static(__dirname));
+// Serve static files from the project root (parent of server/)
+// so that index.html, admin.html, css/, js/, etc. are all accessible.
+app.use(express.static(path.join(__dirname, '..')));
 
 function buildCorsOptions(req, callback) {
   // Handle edge case where req is undefined (can happen in serverless
@@ -82,7 +82,7 @@ app.options('*', cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 
 // Serverless-safe cached connection
 let cached = { connPromise: null };
