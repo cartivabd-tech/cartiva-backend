@@ -97,7 +97,7 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/google-config.js"></script>
     <script>
-        const API_URL = (window.CartivaApiBase || 'https://cartiva-backend.vercel.app') + '/api';
+const API_URL = (window.CartivaApiBase || window.location.origin) + '/api';
 
         // Handle Google credential response
         window.handleGoogleCredential = async function(response) {
