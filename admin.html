@@ -429,23 +429,37 @@
                     <button class="reset-db-btn" onclick="resetDatabase()">Reset Database to Defaults</button>
                 </div>
 
-                <div>
-                    <div class="panel-title" style="margin-bottom: 15px;">Order Telemetry</div>
-                    <div class="table-container">
+<div>
+                    <div class="panel-title" style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;">
+                        <span>Order Telemetry</span>
+                        <button id="refreshOrdersBtn" class="nav-link-btn" style="padding:6px 14px; font-size:0.8em;">🔄 Refresh</button>
+                    </div>
+                    <div class="table-container" style="max-height:500px;">
                         <table>
                             <thead>
                                 <tr>
                                     <th>Order ID</th>
                                     <th>Customer</th>
+                                    <th>Email</th>
                                     <th>Total</th>
+                                    <th>Payment</th>
+                                    <th>Delivery</th>
                                     <th>Items</th>
+                                    <th>Date</th>
                                     <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody id="ordersTableBody">
-                                <tr><td colspan="5" style="text-align:center; color: var(--text-muted);">Loading incoming orders...</td></tr>
+                                <tr><td colspan="9" style="text-align:center; color: var(--text-muted);">Loading incoming orders...</td></tr>
                             </tbody>
                         </table>
+                    </div>
+                    <div id="orderDetailPanel" class="panel-card" style="display:none; margin-top:15px; padding:20px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                            <h4 id="detailTitle" style="margin:0; color:var(--accent-cyan);"></h4>
+                            <button class="nav-link-btn" onclick="closeOrderDetail()" style="padding:4px 12px;">✕ Close</button>
+                        </div>
+                        <div id="detailContent"></div>
                     </div>
                 </div>
             </div>
@@ -627,38 +641,141 @@
             } catch (err) { alert('Delete transaction rejected.'); }
         };
 
-        async function fetchOrders() {
+async function fetchOrders() {
             const token = getAdminToken();
             if (!token) return;
             try {
                 const res = await fetch(`${API_BASE}/admin/orders`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
+                if (!res.ok) {
+                    const errText = await res.text().catch(() => '');
+                    throw new Error(`Server returned ${res.status}: ${errText}`);
+                }
                 const data = await res.json();
                 renderOrders(data.orders || []);
             } catch (err) {
-                ordersTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--danger-red);">Failed to fetch order history.</td></tr>`;
+                console.error('[Admin] fetchOrders error:', err);
+                ordersTableBody.innerHTML = `<tr><td colspan="9" style="text-align:center; color: var(--danger-red);">
+                    Failed to fetch order history: ${err.message}
+                </td></tr>`;
             }
+        }
+
+        function formatDate(isoStr) {
+            if (!isoStr) return 'N/A';
+            try {
+                const d = new Date(isoStr);
+                return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            } catch { return isoStr; }
+        }
+
+        function getStatusColor(status) {
+            const map = {
+                'pending': 'var(--accent-cyan)',
+                'processing': '#f59e0b',
+                'shipped': '#3b82f6',
+                'delivered': 'var(--success-green)',
+                'cancelled': 'var(--danger-red)',
+            };
+            return map[status?.toLowerCase()] || 'var(--text-muted)';
+        }
+
+        function getCustomerName(o) {
+            if (o.user && o.user.name) return o.user.name;
+            if (o.customer?.fullName) return o.customer.fullName;
+            if (o.userName) return o.userName;
+            return 'Guest';
+        }
+
+        function getCustomerEmail(o) {
+            if (o.user && o.user.email) return o.user.email;
+            return o.customerEmail || o.customer?.email || 'N/A';
         }
 
         function renderOrders(orders) {
             ordersTableBody.innerHTML = '';
             if (orders.length === 0) {
-                ordersTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No operations registered.</td></tr>';
+                ordersTableBody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:30px; color: var(--text-muted);">No orders registered yet.</td></tr>';
                 return;
             }
             orders.forEach(o => {
                 const tr = document.createElement('tr');
+                tr.style.cursor = 'pointer';
+                tr.style.transition = 'background 0.15s';
+                tr.addEventListener('mouseenter', () => { tr.style.background = 'rgba(255,255,255,0.03)'; });
+                tr.addEventListener('mouseleave', () => { tr.style.background = ''; });
+                tr.addEventListener('click', () => showOrderDetail(o));
+
+                const customerName = getCustomerName(o);
+                const customerEmail = getCustomerEmail(o);
+                const paymentMethod = o.payment || 'N/A';
+                const deliveryLoc = o.deliveryLocation || 'N/A';
+                const itemCount = o.items ? o.items.length : 0;
+                const orderDate = formatDate(o.createdAt);
+
                 tr.innerHTML = `
-                    <td>${o.orderId || 'N/A'}</td>
-                    <td>${o.customer?.fullName || 'N/A'}</td>
-                    <td>৳${o.totals?.total || 0}</td>
-                    <td>${o.items ? o.items.length : 0} units</td>
-                    <td><span style="color: var(--accent-cyan); font-weight:600;">${o.status || 'Pending'}</span></td>
+                    <td><strong>${o.orderId || 'N/A'}</strong></td>
+                    <td>${customerName}</td>
+                    <td style="font-size:0.85em; color:var(--text-muted);">${customerEmail}</td>
+                    <td><strong>৳${(o.totals?.total || 0).toLocaleString('en-US')}</strong></td>
+                    <td style="font-size:0.85em;">${paymentMethod}</td>
+                    <td style="font-size:0.85em;">${deliveryLoc}</td>
+                    <td>${itemCount}</td>
+                    <td style="font-size:0.8em; color:var(--text-muted);">${orderDate}</td>
+                    <td><span style="color: ${getStatusColor(o.status)}; font-weight:600; text-transform:capitalize;">${o.status || 'Pending'}</span></td>
                 `;
                 ordersTableBody.appendChild(tr);
             });
         }
+
+        window.showOrderDetail = function(o) {
+            const panel = document.getElementById('orderDetailPanel');
+            const title = document.getElementById('detailTitle');
+            const content = document.getElementById('detailContent');
+
+            title.textContent = `Order ${o.orderId || 'N/A'}`;
+
+            const customerName = getCustomerName(o);
+            const customerEmail = getCustomerEmail(o);
+
+            let itemsHtml = '';
+            if (o.items && o.items.length > 0) {
+                itemsHtml = '<div style="margin-top:10px;"><strong>Items:</strong></div>';
+                o.items.forEach((item, idx) => {
+                    itemsHtml += `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border-color); font-size:0.9em;">
+                        <span>${idx+1}. ${item.name || 'Product'}</span>
+                        <span>${item.qty} x ৳${item.price} = <strong>৳${(item.qty * item.price).toLocaleString('en-US')}</strong></span>
+                    </div>`;
+                });
+            }
+
+            content.innerHTML = `
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; font-size:0.9em;">
+                    <div><strong>Customer:</strong> ${customerName}</div>
+                    <div><strong>Email:</strong> ${customerEmail}</div>
+                    <div><strong>Phone:</strong> ${o.customer?.phone || 'N/A'}</div>
+                    <div><strong>Address:</strong> ${o.customer?.address || 'N/A'}, ${o.customer?.city || ''}</div>
+                    <div><strong>Payment:</strong> ${o.payment || 'N/A'}</div>
+                    <div><strong>Delivery:</strong> ${o.deliveryLocation || 'N/A'} (৳${o.deliveryCharge || 0})</div>
+                    <div><strong>Subtotal:</strong> ৳${(o.totals?.subtotal || 0).toLocaleString('en-US')}</div>
+                    <div><strong>Total:</strong> <span style="color:var(--accent-cyan);font-weight:700;">৳${(o.totals?.total || 0).toLocaleString('en-US')}</span></div>
+                    <div><strong>Date:</strong> ${formatDate(o.createdAt)}</div>
+                    <div><strong>Status:</strong> <span style="color:${getStatusColor(o.status)};font-weight:600;">${o.status || 'Pending'}</span></div>
+                </div>
+                ${itemsHtml}
+            `;
+            panel.style.display = 'block';
+        };
+
+        window.closeOrderDetail = function() {
+            document.getElementById('orderDetailPanel').style.display = 'none';
+        };
+
+        // Refresh orders on button click
+        document.getElementById('refreshOrdersBtn').addEventListener('click', () => {
+            fetchOrders();
+        });
 
         window.resetDatabase = async function() {
             alert('Reset service mapping is running...');
