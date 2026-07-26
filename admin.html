@@ -542,7 +542,7 @@
                 tr.innerHTML = `
                     <td><strong>${p.id}</strong></td>
                     <td>${p.name}</td>
-                    <td>$${p.price}</td>
+                    <td>৳${p.price}</td>
                     <td><span style="color: ${p.stock === 'Out of Stock' ? 'var(--danger-red)' : 'var(--success-green)'}">${p.stock || 'In Stock'}</span></td>
                     <td>
                         <button class="btn-action-edit" onclick="editProduct('${p.id}')">Edit</button>
@@ -652,7 +652,7 @@
                 tr.innerHTML = `
                     <td>${o.orderId || 'N/A'}</td>
                     <td>${o.customer?.fullName || 'N/A'}</td>
-                    <td>$${o.totals?.total || 0}</td>
+                    <td>৳${o.totals?.total || 0}</td>
                     <td>${o.items ? o.items.length : 0} units</td>
                     <td><span style="color: var(--accent-cyan); font-weight:600;">${o.status || 'Pending'}</span></td>
                 `;

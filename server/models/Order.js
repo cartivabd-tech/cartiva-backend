@@ -42,6 +42,11 @@ const OrderSchema = new mongoose.Schema(
     customerEmail: { type: String, required: true, index: true },
     customer: { type: CustomerSchema, default: () => ({}) },
 
+    // Whether the customer was logged in when placing the order
+    loggedIn: { type: Boolean, default: false },
+    // The authentication provider used (e.g. 'password', 'google', '')
+    authProvider: { type: String, default: '' },
+
     payment: { type: String, default: '' },
     deliveryLocation: { type: String, default: '' },
     deliveryCharge: { type: Number, default: 0 },

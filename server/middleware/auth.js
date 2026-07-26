@@ -1,9 +1,10 @@
 const jwt = require('jsonwebtoken');
 const Admin = require('../models/Admin');
 const User = require('../models/User');
+const { getJwtSecret } = require('../utils/jwt');
 
 function getSecret() {
-  return process.env.JWT_SECRET || 'dev_secret_change_me';
+  return getJwtSecret();
 }
 
 function authRequired(role) {
