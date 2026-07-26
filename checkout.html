@@ -33,6 +33,7 @@
         <a class="pill" href="index.html">Shop</a>
         <a class="pill" href="cart.html">Cart <span class="badge" id="cartCount">0</span></a>
         <a class="pill active" href="checkout.html">Checkout</a>
+        <a class="pill" href="my-orders.html">My Orders</a>
         <a class="pill" id="authPill" href="login.html" style="display:none">Login</a>
       </nav>
     </div>
@@ -125,11 +126,11 @@
   <script src="js/app.js"></script>
   <script>
     // Dynamic API base (local dev vs deployed)
-    // On Vercel, frontend and backend are at different domains.
-    // Use explicit backend URL in production, or window.CartivaApiBase override.
+    // On Vercel, frontend and backend are on the SAME domain (vercel.json routes /api/*)
+    // so we use window.location.origin as default for Vercel.
     const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
       ? 'http://localhost:5000'
-      : (window.CartivaApiBase || 'https://cartiva-backend.vercel.app');
+      : (window.CartivaApiBase || window.location.origin);
 
     window.CartivaApiBase = API_BASE;
     const API_URL = API_BASE + '/api/store';
@@ -261,10 +262,15 @@
       try {
         showToast('Placing order...');
         
+        // Include auth token if customer is logged in (links order to user for My Orders page)
+        const headers = { 'Content-Type': 'application/json' };
+        const authToken = window.UserAuth ? window.UserAuth.getToken() : null;
+        if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
+        
         // এপিআই সার্ভারে ডাটা পুশ করার ট্রাই করা হচ্ছে
         const res = await fetch(window.CartivaApiBase + '/api/orders', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: headers,
           body: JSON.stringify(orderPayload)
         });
 
