@@ -508,7 +508,7 @@ let loggedInEmail = '';
         city: String(b.customer?.city || '').trim(),
         postal: String(b.customer?.postal || '').trim(),
       },
-      user: userId ? new mongoose.Types.ObjectId(userId) : null,
+      user: userId || null,
       userName: userName,
       payment: String(b.payment || ''),
       deliveryLocation: String(b.deliveryLocation || ''),
