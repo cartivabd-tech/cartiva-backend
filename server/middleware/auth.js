@@ -24,9 +24,11 @@ function authRequired(role) {
       }
 
       if (role === 'customer') {
-        const user = await User.findById(payload.sub);
+        // Support both old (sub) and new (id) JWT payload formats
+        const userId = payload.id || payload.sub;
+        const user = await User.findById(userId);
         if (!user) return res.status(401).json({ error: 'Unauthorized' });
-        req.user = { email: user.email, id: user._id.toString() };
+        req.user = { email: user.email, id: user._id.toString(), role: user.role };
       }
 
       next();

@@ -8,6 +8,8 @@ const UserSchema = new mongoose.Schema(
     name: { type: String, default: '' },
     picture: { type: String, default: '' },
     authProvider: { type: String, default: 'password' },
+    role: { type: String, enum: ['user', 'admin'], default: 'user' },
+    isVerified: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
