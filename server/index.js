@@ -200,10 +200,11 @@ app.post('/api/auth/register', async (req, res) => {
     const exists = await User.findOne({ email: e });
     if (exists) return res.status(409).json({ error: 'Email already exists' });
 
-    const passwordHash = await bcrypt.hash(pw, 10);
-    const user = await User.create({ email: e, passwordHash });
+const passwordHash = await bcrypt.hash(pw, 10);
+    const user = await User.create({ email: e, passwordHash, role: 'user', isVerified: true });
 
-    res.json({ ok: true, user: { id: user._id.toString(), email: user.email } });
+    const token = signToken({ id: user._id.toString(), email: user.email, role: 'user' });
+    res.json({ ok: true, token, user: { id: user._id.toString(), email: user.email, role: user.role } });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
@@ -222,8 +223,8 @@ app.post('/api/auth/login', async (req, res) => {
     const ok = await bcrypt.compare(pw, user.passwordHash);
     if (!ok) return res.status(401).json({ error: 'Invalid email or password' });
 
-    const token = signToken({ sub: user._id.toString(), role: 'customer', email: user.email });
-    res.json({ ok: true, token, user: { id: user._id.toString(), email: user.email } });
+    const token = signToken({ id: user._id.toString(), email: user.email, role: user.role });
+    res.json({ ok: true, token, user: { id: user._id.toString(), email: user.email, name: user.name, picture: user.picture, role: user.role } });
   } catch {
     res.status(500).json({ error: 'Server error' });
   }
@@ -270,20 +271,31 @@ app.post('/api/auth/google', async (req, res) => {
     if (!user) user = await User.findOne({ email });
 
     if (!user) {
-      user = await User.create({ email, googleId, name, picture, authProvider: 'google' });
+      // Create new user with explicit role and verification fields
+      user = await User.create({
+        email,
+        googleId,
+        name,
+        picture,
+        authProvider: 'google',
+        role: 'user',
+        isVerified: true,
+      });
     } else {
       // Keep the profile fresh and link the Google account if not linked yet.
       user.googleId = user.googleId || googleId;
       user.name = name || user.name;
       user.picture = picture || user.picture;
+      user.authProvider = user.authProvider === 'password' ? 'google' : user.authProvider;
+      user.role = user.role || 'user';
       await user.save();
     }
 
-    const token = signToken({ sub: user._id.toString(), role: 'customer', email: user.email });
+    const token = signToken({ id: user._id.toString(), email: user.email, role: user.role });
     res.json({
       ok: true,
       token,
-      user: { id: user._id.toString(), email: user.email, name: user.name, picture: user.picture },
+      user: { id: user._id.toString(), email: user.email, name: user.name, picture: user.picture, role: user.role, authProvider: user.authProvider },
     });
   } catch {
     res.status(500).json({ error: 'Server error' });
@@ -453,18 +465,24 @@ app.post('/api/orders', async (req, res) => {
     // frontend sends their JWT. It's never required (guest checkout keeps
     // working), but if present and valid we trust its email and tag the
     // order as "loggedIn" for the admin dashboard.
-    let loggedInEmail = '';
+let loggedInEmail = '';
     let authProvider = '';
+    let userId = null;
+    let userName = '';
     const authHeader = req.headers.authorization || '';
     const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : null;
     if (bearerToken) {
       try {
         const payload = verifyToken(bearerToken);
-        if (payload && payload.role === 'customer' && payload.email) {
-          const user = await User.findById(payload.sub).lean();
+        // Support both 'user' and 'customer' roles for backward compatibility
+        if (payload && (payload.role === 'user' || payload.role === 'customer') && payload.email) {
+          const uid = payload.id || payload.sub;
+          const user = await User.findById(uid).lean();
           if (user) {
             loggedInEmail = user.email;
             authProvider = user.authProvider || 'password';
+            userId = user._id;
+            userName = user.name || '';
           }
         }
       } catch {
@@ -490,6 +508,8 @@ app.post('/api/orders', async (req, res) => {
         city: String(b.customer?.city || '').trim(),
         postal: String(b.customer?.postal || '').trim(),
       },
+      user: userId || null,
+      userName: userName,
       payment: String(b.payment || ''),
       deliveryLocation: String(b.deliveryLocation || ''),
       deliveryCharge: Number(b.deliveryCharge || 0),
@@ -515,8 +535,19 @@ app.post('/api/orders', async (req, res) => {
 
 app.get('/api/admin/orders', authAdmin, async (req, res) => {
   try {
-    const orders = await Order.find({}).sort({ createdAt: -1 }).limit(100).lean();
-    res.json({ orders });
+    const orders = await Order.find({})
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .populate('user', 'name email picture role authProvider')
+      .lean();
+
+    // Gracefully handle null user references (user deleted or not populated)
+    const safeOrders = orders.map(o => ({
+      ...o,
+      user: o.user || { name: o.userName || o.customer?.fullName || 'Guest', email: o.customerEmail },
+    }));
+
+    res.json({ orders: safeOrders });
   } catch {
     res.status(500).json({ error: 'Server error' });
   }
@@ -568,6 +599,28 @@ app.post('/api/admin/reset', authAdmin, async (req, res) => {
     res.json({ ok: true, reset: true });
   } catch {
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ===== Admin: Users Management =====
+app.get('/api/admin/users', authAdmin, async (req, res) => {
+  try {
+    const users = await User.find({})
+      .sort({ createdAt: -1 })
+      .select('-passwordHash')
+      .lean();
+
+    // Enrich each user with their order count
+    const enriched = await Promise.all(
+      users.map(async (u) => {
+        const orderCount = await Order.countDocuments({ customerEmail: u.email });
+        return { ...u, orderCount };
+      })
+    );
+
+    res.json({ users: enriched });
+  } catch {
+    res.status(500).json({ error: 'Server error fetching users' });
   }
 });
 

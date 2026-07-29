@@ -47,6 +47,11 @@ const OrderSchema = new mongoose.Schema(
     // The authentication provider used (e.g. 'password', 'google', '')
     authProvider: { type: String, default: '' },
 
+    // Reference to the User collection for logged-in customers
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    // Fallback name in case user ref is null
+    userName: { type: String, default: '' },
+
     payment: { type: String, default: '' },
     deliveryLocation: { type: String, default: '' },
     deliveryCharge: { type: Number, default: 0 },

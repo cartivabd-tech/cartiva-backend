@@ -15,7 +15,11 @@ function authRequired(role) {
       if (!token) return res.status(401).json({ error: 'Unauthorized' });
 
       const payload = jwt.verify(token, getSecret());
-      if (!payload || payload.role !== role) return res.status(403).json({ error: 'Forbidden' });
+      if (!payload) return res.status(403).json({ error: 'Forbidden' });
+
+      // Accept both 'customer' (old) and 'user' (new) roles for customer middleware
+      const allowedRoles = role === 'admin' ? ['admin'] : ['customer', 'user'];
+      if (!allowedRoles.includes(payload.role)) return res.status(403).json({ error: 'Forbidden' });
 
       if (role === 'admin') {
         const admin = await Admin.findById(payload.sub);
@@ -23,10 +27,12 @@ function authRequired(role) {
         req.user = { username: admin.username, id: admin._id.toString() };
       }
 
-      if (role === 'customer') {
-        const user = await User.findById(payload.sub);
+      if (role === 'customer' || role === 'user') {
+        // Support both old (sub) and new (id) JWT payload formats
+        const userId = payload.id || payload.sub;
+        const user = await User.findById(userId);
         if (!user) return res.status(401).json({ error: 'Unauthorized' });
-        req.user = { email: user.email, id: user._id.toString() };
+        req.user = { email: user.email, id: user._id.toString(), role: user.role };
       }
 
       next();

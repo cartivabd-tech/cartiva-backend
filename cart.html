@@ -27,13 +27,14 @@
   <header class="header">
     <div class="container header-inner">
       <a class="logo" href="index.html">
-        <div class="logo-badge">C</div>
+        <div class="logo-badge" style="background-image:url('image/site-logo.jpg');background-size:cover;background-position:center;">C</div>
         <div class="logo-title">Cartiva</div>
       </a>
       <nav class="nav">
         <a class="pill" href="index.html">Shop</a>
         <a class="pill active" href="cart.html">Cart <span class="badge" id="cartCount">0</span></a>
         <a class="pill" href="checkout.html">Checkout</a>
+        <a class="pill" href="my-orders.html">My Orders</a>
         <a class="pill" id="authPill" href="login.html" style="display:none">Login</a>
       </nav>
     </div>
@@ -151,7 +152,7 @@
 
       cartList.innerHTML = currentCart.map(item => {
         // কার্ট আইটেমের আইডির সাথে ব্যাকএন্ডের প্রোডাক্ট ম্যাচিং
-        const itemId = item.id || item.productId;
+        const itemId = item.productId || item.id;
         const p = liveProducts.find(x => (x.id === itemId || x._id === itemId)) || item;
         
         const price = Number(p.price || 0);
@@ -197,11 +198,11 @@
       } else {
         let cart = [];
         try { cart = JSON.parse(localStorage.getItem('cartiva_cart_v1')) || []; } catch(e){}
-        const item = cart.find(x => x.id === id);
+        const item = cart.find(x => (x.productId === id || x.id === id));
         if (item) {
           item.qty = (item.qty || 1) + change;
           if (item.qty <= 0) {
-            cart = cart.filter(x => x.id !== id);
+            cart = cart.filter(x => (x.productId !== id && x.id !== id));
           }
           localStorage.setItem('cartiva_cart_v1', JSON.stringify(cart));
           window.dispatchEvent(new CustomEvent('cartiva:cartChanged'));
@@ -217,7 +218,7 @@
       } else {
         let cart = [];
         try { cart = JSON.parse(localStorage.getItem('cartiva_cart_v1')) || []; } catch(e){}
-        cart = cart.filter(x => x.id !== id);
+        cart = cart.filter(x => (x.productId !== id && x.id !== id));
         localStorage.setItem('cartiva_cart_v1', JSON.stringify(cart));
         window.dispatchEvent(new CustomEvent('cartiva:cartChanged'));
       }

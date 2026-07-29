@@ -1,26 +1,21 @@
-## Summary
+## Fix: Cart Item Key Mismatch & Order Storage Bugs
 
-Fix Google Sign-In integration, login button visibility on the shop page, and checkout HTML structure issues.
+### Bugs Fixed
 
-## Changes
+#### 1. Cart Item Key Mismatch (`item.id` vs `item.productId`)
+The `CartivaCart` module in `js/app.js` stores cart items as `{ productId, qty }`, but `checkout.html` and `cart.html` were reading them using `item.id` instead of `item.productId`. This caused:
+- Products not found in `liveProducts` → names/prices showed as undefined/0 on checkout
+- Quantity update/remove functions failing silently in `cart.html`
+- Backend order API receiving items with empty `productId`, causing 400 rejections
 
-### 🧑‍💻 Google Sign-In (Customer Authentication)
-- **`login.html`**: Added Google Sign-In button using Google Identity Services (GIS) with proper `g_id_onload` and `g_id_signin` elements
-- **`js/google-config.js`**: Configured with actual Google Client ID (`29786920881-eek1m6qr22fscqnvm646pv3idvfcth9t.apps.googleusercontent.com`)
-- **`server/models/User.js`**: Added `googleId`, `name`, `picture`, and `authProvider` fields to support Google-authenticated users
-- **`server/index.js`**: Updated `/api/auth/google` endpoint with robust credential verification, account linking (existing email/password accounts can now sign in with Google), and fresh profile syncing
+**Files fixed:** `checkout.html`, `cart.html`
 
-### 🔐 Login Pill Visibility
-- **`index.html`**: Fixed the Login pill (`#authPill`) to always be visible in the nav bar (`display: inline-flex`), ensuring users can always find the login link regardless of screen size or other conditions
+#### 2. Login Redirect Absolute Path
+`login.html` used absolute paths (`/index.html`) which could break on subpath or local deployments.
 
-### 🛠️ Checkout HTML Fix
-- **`checkout.html`**: Fixed malformed HTML structure — the `<div class="topbar">` element was missing its closing `</div>` tag, which broke the layout. Also fixed template literal issues in `calculateAndRenderSummary`
+**File fixed:** `login.html`
 
-### 🧹 Housekeeping
-- **`TODO.md`**: Updated progress tracking for the Google Login & Order Fix implementation
-
-## Testing Notes
-- Google Sign-In flow works end-to-end: frontend sends credential → backend verifies with Google API → account is created/linked → JWT issued → user redirected to shop
-- Guest checkout (no login) continues to work as before
-- Admin login unchanged
+### Testing
+- ✅ All **52 backend tests pass** across 6 test suites
+- Suites: `store.test.js`, `auth.test.js`, `orders.test.js`, `admin.test.js`, `health.test.js`, `middleware.test.js`
 
