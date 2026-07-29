@@ -44,7 +44,6 @@
         <a class="pill" href="index.html">Shop</a>
         <a class="pill" href="cart.html">Cart <span class="badge" id="cartCount">0</span></a>
         <a class="pill" href="checkout.html">Checkout</a>
-        <a class="pill" id="myOrdersPill" href="my-orders.html" style="display:none">My Orders</a>
         <a class="pill" id="authPill" href="login.html">Login</a>
       </nav>
     </div>
@@ -389,28 +388,22 @@
     function syncAuthPill() {
       try {
         const pill = document.getElementById('authPill');
-        const ordersPill = document.getElementById('myOrdersPill');
         if (!pill || !window.UserAuth) return;
-
         const u = window.UserAuth.getCurrentUser();
         if (u) {
-          pill.textContent = 'Logout (' + (u.name || u.email) + ')';
+          pill.textContent = 'Logout (' + u.email + ')';
           pill.href = '#';
           pill.style.display = 'inline-flex';
-          // onclick (not addEventListener) so re-syncing never stacks handlers.
-          pill.onclick = (e) => {
+          pill.addEventListener('click', (e) => {
             e.preventDefault();
             window.UserAuth.logout();
             syncAuthPill();
             showToast('Logged out');
-          };
-          if (ordersPill) ordersPill.style.display = 'inline-flex';
+          }, { once: true });
         } else {
           pill.textContent = 'Login';
           pill.href = 'login.html';
           pill.style.display = 'inline-flex';
-          pill.onclick = null;
-          if (ordersPill) ordersPill.style.display = 'none';
         }
       } catch {}
     }

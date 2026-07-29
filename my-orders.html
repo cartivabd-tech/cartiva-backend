@@ -174,16 +174,9 @@
       } catch {}
     }
 
-    (async function init() {
-      if (window.UserAuth) {
-        // Clears the session when the token has expired, so the page shows the
-        // "please sign in" prompt instead of a generic load error.
-        await window.UserAuth.refreshProfile();
-      }
-      syncAuthPill();
-      syncCartBadge();
-      loadMyOrders();
-    })();
+    syncAuthPill();
+    syncCartBadge();
+    loadMyOrders();
   </script>
 </body>
 </html>

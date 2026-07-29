@@ -192,18 +192,16 @@
 
     // কার্ট আইটেমের সংখ্যা বাড়ানো/কমানোর গ্লোবাল ফাংশন
     window.updateQty = function(id, change) {
-      // addToCart() ignores non-positive amounts, so it could never decrement.
-      // changeQty() applies the delta and removes the row when it hits zero.
-      if (window.CartivaCart && typeof window.CartivaCart.changeQty === 'function') {
-        window.CartivaCart.changeQty(id, change);
+      if (window.CartivaCart && typeof window.CartivaCart.addToCart === 'function') {
+        window.CartivaCart.addToCart(id, change);
       } else {
         let cart = [];
         try { cart = JSON.parse(localStorage.getItem('cartiva_cart_v1')) || []; } catch(e){}
-        const item = cart.find(x => (x.productId || x.id) === id);
+        const item = cart.find(x => x.id === id);
         if (item) {
           item.qty = (item.qty || 1) + change;
           if (item.qty <= 0) {
-            cart = cart.filter(x => (x.productId || x.id) !== id);
+            cart = cart.filter(x => x.id !== id);
           }
           localStorage.setItem('cartiva_cart_v1', JSON.stringify(cart));
           window.dispatchEvent(new CustomEvent('cartiva:cartChanged'));
@@ -219,7 +217,7 @@
       } else {
         let cart = [];
         try { cart = JSON.parse(localStorage.getItem('cartiva_cart_v1')) || []; } catch(e){}
-        cart = cart.filter(x => (x.productId || x.id) !== id);
+        cart = cart.filter(x => x.id !== id);
         localStorage.setItem('cartiva_cart_v1', JSON.stringify(cart));
         window.dispatchEvent(new CustomEvent('cartiva:cartChanged'));
       }

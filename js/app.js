@@ -121,31 +121,12 @@
     window.dispatchEvent(new CustomEvent("cartiva:cartChanged"));
   }
 
-  // Raw cart rows: [{ productId, qty }]
-  // Every page must read the cart through this so nobody re-invents the
-  // storage shape (an older `{ id, qty }` guess in checkout.html was the reason
-  // orders were posted with an undefined productId and rejected by the API).
-  function getCartItems() {
-    return loadCart();
-  }
-
-  // Increase/decrease an existing line by a delta (may be negative).
-  // addToCart() ignores non-positive amounts, so decrementing needs setQty.
-  function changeQty(productId, delta) {
-    const cart = loadCart();
-    const existing = findCartItem(cart, productId);
-    const current = existing ? existing.qty : 0;
-    setQty(productId, current + Number(delta || 0));
-  }
-
   // Expose globally
   window.CartivaCart = {
     STORAGE_KEY,
     getCartCount,
-    getCartItems,
     addToCart,
     setQty,
-    changeQty,
     removeFromCart,
     clearCart,
     getCartDetailed,
@@ -180,22 +161,20 @@
   }
 
   function getApiBase() {
-    // The frontend and the Express API are deployed together (see vercel.json:
-    // /api/* is routed to server/index.js), so same-origin is always correct
-    // and avoids cross-domain requests where the session token would not match
-    // the server that issued it.
-    //
     // Priority:
-    // 1) Explicit override: window.CartivaApiBase = 'https://your-backend'
-    // 2) Same origin as the page being viewed
+    // 1) Explicit override (recommended)
+    //    window.CartivaApiBase = 'https://your-backend-domain'
+    // 2) Same-origin fallback (helps local dev / same-host deployments)
+    // 3) Last resort: the original Vercel backend URL
     const override = window.CartivaApiBase;
     if (typeof override === 'string' && override.trim()) return override.trim();
 
-    return (window.location && window.location.origin) ? window.location.origin : '';
-  }
+    // If the frontend is hosted on the same origin as the API, this fixes connection issues.
+    const sameOrigin = (window.location && window.location.origin) ? window.location.origin : '';
+    if (sameOrigin) return sameOrigin;
 
-  // Make the resolved base available to inline page scripts.
-  if (!window.CartivaApiBase) window.CartivaApiBase = getApiBase();
+    return 'https://cartiva-backend.vercel.app';
+  }
 
 
   async function register(email, password) {
@@ -222,12 +201,7 @@
     const data = await res.json().catch(() => ({}));
     if (!res.ok) return false;
 
-    setSession({
-      token: data.token,
-      email: data.user?.email || email,
-      name: data.user?.name || '',
-      picture: data.user?.picture || '',
-    });
+    setSession({ token: data.token, email: data.user?.email || email });
     return true;
   }
 
@@ -238,48 +212,14 @@
   function getCurrentUser() {
     const s = getSession();
     if (!s) return null;
-    return { email: s.email, name: s.name || '', picture: s.picture || '' };
-  }
-
-  // Authorization header for API calls, or {} for guests. Used by checkout so
-  // an order placed while signed in gets attached to the customer's account.
-  function authHeaders() {
-    const token = getSession()?.token;
-    return token ? { Authorization: 'Bearer ' + token } : {};
-  }
-
-  // Refresh the cached profile (name/picture) from the server, and drop the
-  // session if the token is no longer accepted.
-  async function refreshProfile() {
-    const s = getSession();
-    if (!s) return null;
-
-    try {
-      const res = await fetch(getApiBase() + '/api/me/customer', { headers: authHeaders() });
-      if (res.status === 401 || res.status === 403) {
-        clearSession();
-        return null;
-      }
-      if (!res.ok) return getCurrentUser();
-
-      const data = await res.json();
-      setSession({ ...s, email: data.email || s.email, name: data.name || '', picture: data.picture || '' });
-      return getCurrentUser();
-    } catch {
-      return getCurrentUser();
-    }
+    return { email: s.email };
   }
 
   window.UserAuth = {
-    SESSION_KEY,
     register,
     login,
     logout,
     getCurrentUser,
-    getApiBase,
-    authHeaders,
-    refreshProfile,
-    setSession,
     getToken() {
       return getSession()?.token || null;
     },
