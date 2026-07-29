@@ -201,10 +201,15 @@ app.post('/api/auth/register', async (req, res) => {
     if (exists) return res.status(409).json({ error: 'Email already exists' });
 
     const passwordHash = await bcrypt.hash(pw, 10);
-    const user = await User.create({ email: e, passwordHash });
+    const user = await User.create({ email: e, passwordHash, authProvider: 'password' });
+    console.log('[auth/register] new customer created:', e);
 
-    res.json({ ok: true, user: { id: user._id.toString(), email: user.email } });
+    // Return a token so the shopper is signed in immediately after signing up
+    // and their first order is linked to the new account.
+    const token = signToken({ sub: user._id.toString(), role: 'customer', email: user.email });
+    res.json({ ok: true, token, user: { id: user._id.toString(), email: user.email } });
   } catch (err) {
+    console.error('[auth/register] failed:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -247,7 +252,8 @@ app.post('/api/auth/google', async (req, res) => {
         audience: GOOGLE_CLIENT_ID,
       });
       payload = ticket.getPayload();
-    } catch {
+    } catch (verifyErr) {
+      console.error('[auth/google] token verification failed:', verifyErr.message);
       return res.status(401).json({ error: 'Invalid Google credential' });
     }
 
@@ -271,12 +277,14 @@ app.post('/api/auth/google', async (req, res) => {
 
     if (!user) {
       user = await User.create({ email, googleId, name, picture, authProvider: 'google' });
+      console.log('[auth/google] new customer created:', email);
     } else {
       // Keep the profile fresh and link the Google account if not linked yet.
       user.googleId = user.googleId || googleId;
       user.name = name || user.name;
       user.picture = picture || user.picture;
       await user.save();
+      console.log('[auth/google] existing customer signed in:', email);
     }
 
     const token = signToken({ sub: user._id.toString(), role: 'customer', email: user.email });
@@ -285,7 +293,8 @@ app.post('/api/auth/google', async (req, res) => {
       token,
       user: { id: user._id.toString(), email: user.email, name: user.name, picture: user.picture },
     });
-  } catch {
+  } catch (err) {
+    console.error('[auth/google] failed:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -326,11 +335,17 @@ app.get('/api/me/customer', authCustomer, async (req, res) => {
 // Order history for the logged-in customer (requires Google/email login).
 app.get('/api/my/orders', authCustomer, async (req, res) => {
   try {
-    const orders = await Order.find({ customerEmail: req.user.email })
+    // Match on the linked account id (orders placed while signed in) OR the
+    // account email (guest orders placed with the same email address), so the
+    // customer sees their full history either way.
+    const orders = await Order.find({
+      $or: [{ userId: req.user.id }, { customerEmail: req.user.email }],
+    })
       .sort({ createdAt: -1 })
       .lean();
     res.json({ ok: true, orders });
-  } catch {
+  } catch (err) {
+    console.error('[my/orders] failed:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -454,33 +469,80 @@ app.post('/api/orders', async (req, res) => {
     // working), but if present and valid we trust its email and tag the
     // order as "loggedIn" for the admin dashboard.
     let loggedInEmail = '';
+    let loggedInUserId = null;
+    let loggedInName = '';
     let authProvider = '';
     const authHeader = req.headers.authorization || '';
     const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : null;
     if (bearerToken) {
       try {
         const payload = verifyToken(bearerToken);
-        if (payload && payload.role === 'customer' && payload.email) {
+        if (payload && payload.role === 'customer') {
           const user = await User.findById(payload.sub).lean();
           if (user) {
             loggedInEmail = user.email;
+            loggedInUserId = user._id;
+            loggedInName = user.name || '';
             authProvider = user.authProvider || 'password';
           }
         }
-      } catch {
+      } catch (tokenErr) {
         // Invalid/expired token: fall back to guest checkout silently.
+        console.warn('[orders] ignoring invalid customer token:', tokenErr.message);
       }
     }
 
-    const customerEmail = String(loggedInEmail || b.customerEmail || b.customer?.email || '').trim();
+    const customerEmail = String(loggedInEmail || b.customerEmail || b.customer?.email || '')
+      .trim()
+      .toLowerCase();
     if (!customerEmail) return res.status(400).json({ error: 'Customer email is required' });
 
-    const generatedOrderId = `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
+    // Validate + normalise line items up front so a malformed cart returns a
+    // clear 400 instead of an opaque Mongoose validation 500.
+    const requestedIds = items.map(it => String(it?.productId || it?.id || '').trim()).filter(Boolean);
+    const catalog = await Product.find({ id: { $in: requestedIds } }).lean();
+    const catalogById = new Map(catalog.map(p => [p.id, p]));
+
+    const normalizedItems = [];
+    for (const it of items) {
+      const productId = String(it?.productId || it?.id || '').trim();
+      const qty = Math.floor(Number(it?.qty));
+
+      if (!productId) {
+        return res.status(400).json({ error: 'Each cart item needs a productId' });
+      }
+      if (!Number.isFinite(qty) || qty < 1 || qty > 100) {
+        return res.status(400).json({ error: `Invalid quantity for product ${productId}` });
+      }
+
+      // Prices and names always come from the database when the product still
+      // exists, so a tampered client payload cannot change what is charged.
+      const dbProduct = catalogById.get(productId);
+      const name = String(dbProduct?.name || it?.name || '').trim();
+      const price = Number(dbProduct?.price ?? it?.price);
+
+      if (!name || !Number.isFinite(price) || price < 0) {
+        return res.status(400).json({ error: `Unknown or invalid product: ${productId}` });
+      }
+
+      normalizedItems.push({ productId, name, price, qty });
+    }
+
+    // Recompute money server-side; never trust client totals.
+    const subtotal = normalizedItems.reduce((sum, it) => sum + it.price * it.qty, 0);
+    const deliveryRaw = Number(b.deliveryCharge ?? b.totals?.delivery ?? 0);
+    const delivery = Number.isFinite(deliveryRaw) && deliveryRaw >= 0 ? deliveryRaw : 0;
+
+    // Always generate the id here. A client-supplied id can collide with an
+    // existing order, which used to surface as an unexplained 500.
+    const orderId = `ORD-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
     const order = await Order.create({
-      orderId: String(b.orderId || generatedOrderId),
+      orderId,
       customerEmail,
-      loggedIn: Boolean(loggedInEmail),
+      userId: loggedInUserId,
+      customerName: String(b.customer?.fullName || loggedInName || '').trim(),
+      loggedIn: Boolean(loggedInUserId),
       authProvider,
       customer: {
         fullName: String(b.customer?.fullName || '').trim(),
@@ -492,32 +554,84 @@ app.post('/api/orders', async (req, res) => {
       },
       payment: String(b.payment || ''),
       deliveryLocation: String(b.deliveryLocation || ''),
-      deliveryCharge: Number(b.deliveryCharge || 0),
+      deliveryCharge: delivery,
       totals: {
-        subtotal: Number(b.totals?.subtotal || 0),
-        delivery: Number(b.totals?.delivery || b.deliveryCharge || 0),
-        total: Number(b.totals?.total || 0),
+        subtotal,
+        delivery,
+        total: subtotal + delivery,
       },
-      items: items.map(it => ({
-        productId: String(it.productId || ''),
-        name: String(it.name || ''),
-        price: Number(it.price || 0),
-        qty: Number(it.qty || 0),
-      })),
+      items: normalizedItems,
       status: String(b.status || 'pending'),
     });
 
+    console.log('[orders] saved', order.orderId, 'for', customerEmail, order.loggedIn ? '(logged in)' : '(guest)');
     res.json({ ok: true, orderId: order.orderId });
-  } catch {
-    res.status(500).json({ error: 'Server error' });
+  } catch (err) {
+    console.error('[orders] failed to save order:', err);
+
+    if (err?.name === 'ValidationError') {
+      return res.status(400).json({ error: err.message });
+    }
+    // Duplicate orderId: retry once with a fresh server-generated id so the
+    // customer is never blocked by an id collision.
+    if (err?.code === 11000) {
+      return res.status(409).json({ error: 'Duplicate order id, please try again' });
+    }
+    res.status(500).json({ error: 'Could not save your order. Please try again.' });
   }
 });
 
 app.get('/api/admin/orders', authAdmin, async (req, res) => {
   try {
-    const orders = await Order.find({}).sort({ createdAt: -1 }).limit(100).lean();
-    res.json({ orders });
-  } catch {
+    const limit = Math.min(Number(req.query.limit) || 200, 500);
+    const orders = await Order.find({}).sort({ createdAt: -1 }).limit(limit).lean();
+    res.json({ ok: true, count: orders.length, orders });
+  } catch (err) {
+    console.error('[admin/orders] failed:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Registered customers (email/password + Google sign-ins) for the admin panel.
+app.get('/api/admin/customers', authAdmin, async (req, res) => {
+  try {
+    const users = await User.find({})
+      .sort({ createdAt: -1 })
+      .limit(500)
+      .select('email name picture authProvider createdAt')
+      .lean();
+
+    const emails = users.map(u => u.email);
+    const ids = users.map(u => u._id);
+
+    // Order count + lifetime spend per customer, in one pass.
+    const agg = await Order.aggregate([
+      { $match: { $or: [{ userId: { $in: ids } }, { customerEmail: { $in: emails } }] } },
+      {
+        $group: {
+          _id: '$customerEmail',
+          orderCount: { $sum: 1 },
+          totalSpent: { $sum: '$totals.total' },
+        },
+      },
+    ]);
+    const statsByEmail = new Map(agg.map(a => [a._id, a]));
+
+    res.json({
+      ok: true,
+      customers: users.map(u => ({
+        id: u._id.toString(),
+        email: u.email,
+        name: u.name || '',
+        picture: u.picture || '',
+        authProvider: u.authProvider || 'password',
+        createdAt: u.createdAt,
+        orderCount: statsByEmail.get(u.email)?.orderCount || 0,
+        totalSpent: statsByEmail.get(u.email)?.totalSpent || 0,
+      })),
+    });
+  } catch (err) {
+    console.error('[admin/customers] failed:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });

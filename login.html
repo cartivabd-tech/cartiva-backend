@@ -97,7 +97,28 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/google-config.js"></script>
     <script>
-        const API_URL = (window.CartivaApiBase || 'https://cartiva-backend.vercel.app') + '/api';
+        // The API ships with this site (vercel.json routes /api/* to
+        // server/index.js). Using the current origin keeps the issued session
+        // token valid for every other page, which a hardcoded backend domain
+        // did not guarantee.
+        const API_URL = (window.CartivaApiBase || window.location.origin) + '/api';
+        const SESSION_KEY = 'cartiva_customer_session_v2';
+
+        // Send the shopper back where they came from (e.g. checkout).
+        function redirectAfterLogin() {
+            const next = new URLSearchParams(window.location.search).get('next');
+            const safeNext = next && /^[a-z0-9\-]+\.html$/i.test(next) ? next : 'index.html';
+            window.location.href = safeNext;
+        }
+
+        function saveSession(data, fallbackEmail) {
+            localStorage.setItem(SESSION_KEY, JSON.stringify({
+                token: data.token,
+                email: data.user?.email || fallbackEmail || '',
+                name: data.user?.name || '',
+                picture: data.user?.picture || ''
+            }));
+        }
 
         // Handle Google credential response
         window.handleGoogleCredential = async function(response) {
@@ -126,11 +147,8 @@
                 if (!res.ok || !data.ok) throw new Error(data.error || 'Google sign-in failed');
 
                 // Store session aligned with js/app.js (cartiva_customer_session_v2)
-                localStorage.setItem('cartiva_customer_session_v2', JSON.stringify({ 
-                    token: data.token, 
-                    email: data.user?.email || '' 
-                }));
-                window.location.href = '/index.html';
+                saveSession(data);
+                redirectAfterLogin();
 
             } catch (err) {
                 errorMsg.innerText = err.message;
@@ -162,8 +180,8 @@
                 if (!res.ok || !data.ok) throw new Error(data.error || 'Invalid email or password');
 
                 // token store aligned with js/app.js (cartiva_customer_session_v2)
-                localStorage.setItem('cartiva_customer_session_v2', JSON.stringify({ token: data.token, email: data.user?.email || email }));
-                window.location.href = '/index.html';
+                saveSession(data, email);
+                redirectAfterLogin();
 
             } catch (err) {
                 errorMsg.innerText = err.message;

@@ -42,6 +42,13 @@ const OrderSchema = new mongoose.Schema(
     customerEmail: { type: String, required: true, index: true },
     customer: { type: CustomerSchema, default: () => ({}) },
 
+    // Set when the order was placed by a signed-in customer (Google or
+    // email/password). This is the reliable link between a User document and
+    // their orders — matching on email alone breaks as soon as the shopper
+    // types a different email into the checkout form.
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
+    customerName: { type: String, default: '' },
+
     // Whether the customer was logged in when placing the order
     loggedIn: { type: Boolean, default: false },
     // The authentication provider used (e.g. 'password', 'google', '')

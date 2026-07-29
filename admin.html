@@ -115,6 +115,66 @@
         .status-banner.success { background-color: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); }
         .status-banner.error { background-color: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
 
+        /* 📈 Stats strip */
+        .stats-strip {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            padding: 0 5%;
+            margin-bottom: 28px;
+        }
+
+        @media (max-width: 700px) {
+            .stats-strip { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        .stat-box {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 18px 20px;
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 0.8em;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+        }
+
+        .stat-value {
+            font-size: 1.6em;
+            font-weight: 700;
+            margin-top: 6px;
+        }
+
+        .status-select {
+            padding: 5px 8px;
+            font-size: 0.85em;
+            border-radius: 6px;
+            width: auto;
+            min-width: 110px;
+        }
+
+        .order-meta {
+            color: var(--text-muted);
+            font-size: 0.85em;
+            margin-top: 3px;
+            line-height: 1.5;
+        }
+
+        .provider-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.75em;
+            font-weight: 700;
+        }
+        .provider-tag.google { background: rgba(59,130,246,0.15); color: #93c5fd; }
+        .provider-tag.password { background: rgba(148,163,184,0.15); color: #cbd5e1; }
+        .provider-tag.guest { background: rgba(245,158,11,0.15); color: #fbbf24; }
+
         /* 📊 Dashboard Workspace */
         .workspace {
             display: grid;
@@ -334,6 +394,25 @@
 
         <div id="syncStatus" class="status-banner error">❌ Checking Cloud Sync...</div>
 
+        <div class="stats-strip">
+            <div class="stat-box">
+                <div class="stat-label">Total Orders</div>
+                <div class="stat-value" id="statOrders">—</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Revenue</div>
+                <div class="stat-value" id="statRevenue">—</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Pending</div>
+                <div class="stat-value" id="statPending">—</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Products</div>
+                <div class="stat-value" id="statProducts">—</div>
+            </div>
+        </div>
+
         <div class="workspace">
             <div class="panel-card">
                 <div class="panel-title">Product Manager</div>
@@ -430,20 +509,45 @@
                 </div>
 
                 <div>
-                    <div class="panel-title" style="margin-bottom: 15px;">Order Telemetry</div>
-                    <div class="table-container">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; gap:10px;">
+                        <div class="panel-title" style="margin:0;">Customer Orders <span id="ordersCount" style="color:var(--text-muted); font-weight:500; font-size:0.7em;"></span></div>
+                        <button class="nav-link-btn" style="cursor:pointer;" onclick="fetchOrders()">Refresh</button>
+                    </div>
+                    <div class="table-container" style="max-height:420px;">
                         <table>
                             <thead>
                                 <tr>
-                                    <th>Order ID</th>
+                                    <th>Order</th>
                                     <th>Customer</th>
-                                    <th>Total</th>
                                     <th>Items</th>
+                                    <th>Total</th>
                                     <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody id="ordersTableBody">
                                 <tr><td colspan="5" style="text-align:center; color: var(--text-muted);">Loading incoming orders...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; gap:10px;">
+                        <div class="panel-title" style="margin:0;">Registered Customers <span id="customersCount" style="color:var(--text-muted); font-weight:500; font-size:0.7em;"></span></div>
+                        <button class="nav-link-btn" style="cursor:pointer;" onclick="fetchCustomers()">Refresh</button>
+                    </div>
+                    <div class="table-container" style="max-height:300px;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Customer</th>
+                                    <th>Sign-in</th>
+                                    <th>Orders</th>
+                                    <th>Spent</th>
+                                </tr>
+                            </thead>
+                            <tbody id="customersTableBody">
+                                <tr><td colspan="4" style="text-align:center; color: var(--text-muted);">Loading customers...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -464,11 +568,41 @@
         const mainDashboardWrapper = document.getElementById('mainDashboardWrapper');
         const adminLoginForm = document.getElementById('adminLoginForm');
         const loginErrorMsg = document.getElementById('loginErrorMsg');
+        const customersTableBody = document.getElementById('customersTableBody');
+
+        let refreshTimer = null;
 
         function getAdminToken() { return localStorage.getItem('adminToken'); }
 
+        function authHeaders() {
+            return { 'Authorization': `Bearer ${getAdminToken()}` };
+        }
+
+        function escapeHtml(s) {
+            return String(s == null ? '' : s)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;');
+        }
+
+        function money(n) {
+            return '৳' + Number(n || 0).toLocaleString('en-US');
+        }
+
+        // An expired or invalid admin token must send the operator back to the
+        // login screen instead of leaving empty tables that look like "no orders".
+        function handleUnauthorized() {
+            localStorage.removeItem('adminToken');
+            loginErrorMsg.innerText = 'Your session expired. Please log in again.';
+            loginErrorMsg.style.display = 'block';
+            checkAuth();
+        }
+
         function checkAuth() {
             const token = getAdminToken();
+            if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+
             if (!token) {
                 adminLoginOverlay.style.display = 'flex';
                 mainDashboardWrapper.style.pointerEvents = 'none';
@@ -477,9 +611,17 @@
                 adminLoginOverlay.style.display = 'none';
                 mainDashboardWrapper.style.pointerEvents = 'auto';
                 mainDashboardWrapper.style.opacity = '1';
-                fetchStoreData();
-                fetchOrders();
+                loadDashboard();
+                // Keep the order queue live without a manual reload.
+                refreshTimer = setInterval(() => { fetchOrders(); fetchStats(); }, 30000);
             }
+        }
+
+        function loadDashboard() {
+            fetchStoreData();
+            fetchOrders();
+            fetchCustomers();
+            fetchStats();
         }
 
         adminLoginForm.addEventListener('submit', async (e) => {
@@ -580,17 +722,21 @@
             try {
                 const res = await fetch(`${API_BASE}/products`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
+                    headers: { 'Content-Type': 'application/json', ...authHeaders() },
                     body: JSON.stringify(payload)
                 });
-                if (!res.ok) throw new Error();
+                if (res.status === 401 || res.status === 403) return handleUnauthorized();
+
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || `Request failed (HTTP ${res.status})`);
+
                 alert('Product updated successfully!');
                 productForm.reset();
                 fetchStoreData();
-            } catch (err) { alert('Failed to sync changes with server database.'); }
+                fetchStats();
+            } catch (err) {
+                alert('Failed to save product: ' + err.message);
+            }
         });
 
         window.editProduct = function(id) {
@@ -616,52 +762,195 @@
 
         window.deleteProduct = async function(id) {
             if (!confirm(`Are you sure you want to remove product ${id}?`)) return;
-            const token = getAdminToken();
             try {
-                const res = await fetch(`${API_BASE}/products/${id}`, {
+                const res = await fetch(`${API_BASE}/products/${encodeURIComponent(id)}`, {
                     method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    headers: authHeaders()
                 });
-                if (!res.ok) throw new Error();
+                if (res.status === 401 || res.status === 403) return handleUnauthorized();
+
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || `Request failed (HTTP ${res.status})`);
+
                 fetchStoreData();
-            } catch (err) { alert('Delete transaction rejected.'); }
+                fetchStats();
+            } catch (err) {
+                alert('Delete failed: ' + err.message);
+            }
         };
 
-        async function fetchOrders() {
+        window.fetchOrders = async function fetchOrders() {
             const token = getAdminToken();
             if (!token) return;
             try {
-                const res = await fetch(`${API_BASE}/admin/orders`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const res = await fetch(`${API_BASE}/admin/orders`, { headers: authHeaders() });
+                if (res.status === 401 || res.status === 403) return handleUnauthorized();
+
                 const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Request failed');
                 renderOrders(data.orders || []);
             } catch (err) {
-                ordersTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--danger-red);">Failed to fetch order history.</td></tr>`;
+                console.error('[admin] fetchOrders failed', err);
+                document.getElementById('ordersCount').textContent = '';
+                ordersTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--danger-red);">Failed to fetch orders: ${escapeHtml(err.message)}</td></tr>`;
             }
-        }
+        };
+
+        const ORDER_STATUSES = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
 
         function renderOrders(orders) {
+            document.getElementById('ordersCount').textContent = orders.length ? `(${orders.length})` : '';
             ordersTableBody.innerHTML = '';
+
             if (orders.length === 0) {
-                ordersTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No operations registered.</td></tr>';
+                ordersTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-muted);">No orders yet.</td></tr>';
                 return;
             }
+
             orders.forEach(o => {
+                const c = o.customer || {};
+                const placed = o.createdAt
+                    ? new Date(o.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                    : '';
+
+                const provider = o.loggedIn ? (o.authProvider || 'password') : 'guest';
+                const itemLines = (o.items || [])
+                    .map(it => `${escapeHtml(it.name)} × ${it.qty}`)
+                    .join('<br />');
+
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td>${o.orderId || 'N/A'}</td>
-                    <td>${o.customer?.fullName || 'N/A'}</td>
-                    <td>৳${o.totals?.total || 0}</td>
-                    <td>${o.items ? o.items.length : 0} units</td>
-                    <td><span style="color: var(--accent-cyan); font-weight:600;">${o.status || 'Pending'}</span></td>
+                    <td style="vertical-align:top;">
+                        <strong>${escapeHtml(o.orderId || 'N/A')}</strong>
+                        <div class="order-meta">${escapeHtml(placed)}</div>
+                        <div class="order-meta">${escapeHtml(o.payment || '-')}</div>
+                    </td>
+                    <td style="vertical-align:top;">
+                        <strong>${escapeHtml(c.fullName || o.customerName || 'Guest')}</strong>
+                        <span class="provider-tag ${provider === 'google' ? 'google' : provider === 'guest' ? 'guest' : 'password'}">${escapeHtml(provider)}</span>
+                        <div class="order-meta">${escapeHtml(o.customerEmail || c.email || '')}</div>
+                        <div class="order-meta">${escapeHtml(c.phone || '')}</div>
+                        <div class="order-meta">${escapeHtml([c.address, c.city, c.postal].filter(Boolean).join(', '))}</div>
+                        <div class="order-meta">${escapeHtml(o.deliveryLocation || '')}</div>
+                    </td>
+                    <td style="vertical-align:top;" class="order-meta">${itemLines || '-'}</td>
+                    <td style="vertical-align:top;">
+                        <strong>${money(o.totals?.total)}</strong>
+                        <div class="order-meta">items ${money(o.totals?.subtotal)}<br />delivery ${money(o.totals?.delivery)}</div>
+                    </td>
+                    <td style="vertical-align:top;">
+                        <select class="status-select" data-order-id="${escapeHtml(o.orderId)}">
+                            ${ORDER_STATUSES.map(s => `<option value="${s}" ${String(o.status || 'pending').toLowerCase() === s ? 'selected' : ''}>${s}</option>`).join('')}
+                        </select>
+                    </td>
                 `;
+
+                tr.querySelector('.status-select').addEventListener('change', (e) => {
+                    updateOrderStatus(e.target.dataset.orderId, e.target.value, e.target);
+                });
+
                 ordersTableBody.appendChild(tr);
             });
         }
 
+        async function updateOrderStatus(orderId, status, selectEl) {
+            const previous = selectEl.dataset.previous || '';
+            selectEl.disabled = true;
+            try {
+                const res = await fetch(`${API_BASE}/admin/orders/${encodeURIComponent(orderId)}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+                    body: JSON.stringify({ status })
+                });
+                if (res.status === 401 || res.status === 403) return handleUnauthorized();
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Update failed');
+                fetchStats();
+            } catch (err) {
+                alert('Could not update status: ' + err.message);
+                if (previous) selectEl.value = previous;
+            } finally {
+                selectEl.disabled = false;
+                selectEl.dataset.previous = selectEl.value;
+            }
+        }
+
+        window.fetchCustomers = async function fetchCustomers() {
+            const token = getAdminToken();
+            if (!token) return;
+            try {
+                const res = await fetch(`${API_BASE}/admin/customers`, { headers: authHeaders() });
+                if (res.status === 401 || res.status === 403) return handleUnauthorized();
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Request failed');
+                renderCustomers(data.customers || []);
+            } catch (err) {
+                console.error('[admin] fetchCustomers failed', err);
+                customersTableBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color: var(--danger-red);">Failed to fetch customers: ${escapeHtml(err.message)}</td></tr>`;
+            }
+        };
+
+        function renderCustomers(customers) {
+            document.getElementById('customersCount').textContent = customers.length ? `(${customers.length})` : '';
+            customersTableBody.innerHTML = '';
+
+            if (customers.length === 0) {
+                customersTableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: var(--text-muted);">No customer accounts yet.</td></tr>';
+                return;
+            }
+
+            customers.forEach(u => {
+                const joined = u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <strong>${escapeHtml(u.name || u.email)}</strong>
+                        <div class="order-meta">${escapeHtml(u.email)}</div>
+                        <div class="order-meta">joined ${escapeHtml(joined)}</div>
+                    </td>
+                    <td><span class="provider-tag ${u.authProvider === 'google' ? 'google' : 'password'}">${escapeHtml(u.authProvider)}</span></td>
+                    <td>${u.orderCount}</td>
+                    <td>${money(u.totalSpent)}</td>
+                `;
+                customersTableBody.appendChild(tr);
+            });
+        }
+
+        async function fetchStats() {
+            const token = getAdminToken();
+            if (!token) return;
+            try {
+                const res = await fetch(`${API_BASE}/admin/stats`, { headers: authHeaders() });
+                if (res.status === 401 || res.status === 403) return handleUnauthorized();
+                if (!res.ok) return;
+
+                const s = await res.json();
+                document.getElementById('statOrders').textContent = s.totalOrders ?? 0;
+                document.getElementById('statRevenue').textContent = money(s.totalRevenue);
+                document.getElementById('statPending').textContent = s.orderStatusCounts?.pending ?? 0;
+                document.getElementById('statProducts').textContent = s.totalProducts ?? 0;
+            } catch (err) {
+                console.error('[admin] fetchStats failed', err);
+            }
+        }
+
         window.resetDatabase = async function() {
-            alert('Reset service mapping is running...');
+            if (!confirm('This permanently deletes ALL products and ALL orders. Continue?')) return;
+            if (!confirm('Are you absolutely sure? This cannot be undone.')) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/admin/reset`, { method: 'POST', headers: authHeaders() });
+                if (res.status === 401 || res.status === 403) return handleUnauthorized();
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Reset failed');
+                alert('Database cleared.');
+                loadDashboard();
+            } catch (err) {
+                alert('Reset failed: ' + err.message);
+            }
         };
 
         window.logout = function() {
