@@ -130,7 +130,7 @@ const API_URL = (window.CartivaApiBase || window.location.origin) + '/api';
                     token: data.token, 
                     email: data.user?.email || '' 
                 }));
-                window.location.href = '/index.html';
+                window.location.href = 'index.html';
 
             } catch (err) {
                 errorMsg.innerText = err.message;
@@ -163,7 +163,7 @@ const API_URL = (window.CartivaApiBase || window.location.origin) + '/api';
 
                 // token store aligned with js/app.js (cartiva_customer_session_v2)
                 localStorage.setItem('cartiva_customer_session_v2', JSON.stringify({ token: data.token, email: data.user?.email || email }));
-                window.location.href = '/index.html';
+                window.location.href = 'index.html';
 
             } catch (err) {
                 errorMsg.innerText = err.message;

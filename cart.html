@@ -152,7 +152,7 @@
 
       cartList.innerHTML = currentCart.map(item => {
         // কার্ট আইটেমের আইডির সাথে ব্যাকএন্ডের প্রোডাক্ট ম্যাচিং
-        const itemId = item.id || item.productId;
+        const itemId = item.productId || item.id;
         const p = liveProducts.find(x => (x.id === itemId || x._id === itemId)) || item;
         
         const price = Number(p.price || 0);
@@ -198,11 +198,11 @@
       } else {
         let cart = [];
         try { cart = JSON.parse(localStorage.getItem('cartiva_cart_v1')) || []; } catch(e){}
-        const item = cart.find(x => x.id === id);
+        const item = cart.find(x => (x.productId === id || x.id === id));
         if (item) {
           item.qty = (item.qty || 1) + change;
           if (item.qty <= 0) {
-            cart = cart.filter(x => x.id !== id);
+            cart = cart.filter(x => (x.productId !== id && x.id !== id));
           }
           localStorage.setItem('cartiva_cart_v1', JSON.stringify(cart));
           window.dispatchEvent(new CustomEvent('cartiva:cartChanged'));
@@ -218,7 +218,7 @@
       } else {
         let cart = [];
         try { cart = JSON.parse(localStorage.getItem('cartiva_cart_v1')) || []; } catch(e){}
-        cart = cart.filter(x => x.id !== id);
+        cart = cart.filter(x => (x.productId !== id && x.id !== id));
         localStorage.setItem('cartiva_cart_v1', JSON.stringify(cart));
         window.dispatchEvent(new CustomEvent('cartiva:cartChanged'));
       }

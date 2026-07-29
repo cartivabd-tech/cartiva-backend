@@ -181,7 +181,7 @@
 
       let subtotal = 0;
       itemsListEl.innerHTML = currentCart.map(item => {
-        const itemId = item.id;
+        const itemId = item.productId || item.id;
         const p = liveProducts.find(x => (x.id === itemId || x._id === itemId)) || item;
         const price = Number(p.price || 0);
         const qty = Number(item.qty || 1);
@@ -223,7 +223,7 @@
       
       let subtotal = 0;
       const parsedItems = currentCart.map(item => {
-        const itemId = item.id;
+        const itemId = item.productId || item.id;
         const p = liveProducts.find(x => (x.id === itemId || x._id === itemId)) || item;
         subtotal += Number(p.price || 0) * Number(item.qty || 1);
         return {
